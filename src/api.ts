@@ -62,6 +62,21 @@ export async function uploadImage(file: File, slug: string, token: string): Prom
   return imageUrl
 }
 
+export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
+  if (!token) throw new Error('Not authenticated')
+  const res = await fetch(`${BASE}/withoutbg?slug=${encodeURIComponent(slug)}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': file.type,
+    },
+    body: file,
+  })
+  if (!res.ok) throw new Error('Background removal failed')
+  const blob = await res.blob()
+  return new File([blob], 'image.webp', { type: 'image/webp' })
+}
+
 export async function getMySlug(token: string): Promise<string> {
   const res = await fetch(`${BASE}/whoami`, {
     headers: authHeaders(token),

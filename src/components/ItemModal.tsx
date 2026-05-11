@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { CATEGORIES } from '../constants'
-import { uploadImage } from '../api'
+import { uploadImage, removeBackground } from '../api'
 import type { ModalState, SavePayload } from '../types'
 
 type FormState = {
@@ -29,6 +29,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
   const [form, setForm] = useState<FormState>(initial)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
+  const [removingBg, setRemovingBg] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const previewUrl = useMemo(
@@ -44,6 +45,20 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
   const set = (f: keyof FormState) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(prev => ({ ...prev, [f]: e.target.value }))
+
+  const handleRemoveBg = async () => {
+    if (!imageFile) return
+    setRemovingBg(true)
+    setError(null)
+    try {
+      const cleaned = await removeBackground(imageFile, slug, token)
+      setImageFile(cleaned)
+    } catch {
+      setError('Background removal failed. Please try again.')
+    } finally {
+      setRemovingBg(false)
+    }
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -90,6 +105,16 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
             )}
             <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] ?? null)} className="text-sm text-[--muted]" />
           </label>
+          {imageFile && (
+            <button
+              type="button"
+              disabled={removingBg || busy}
+              onClick={handleRemoveBg}
+              className="self-start px-3 py-1.5 border border-[--border] rounded text-sm font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+            >
+              {removingBg ? 'Removing background…' : 'Remove background'}
+            </button>
+          )}
           {error && <p className="text-[--danger] text-sm">{error}</p>}
           <div className="flex justify-end gap-2.5 mt-2">
             <button type="button" disabled={busy} onClick={onClose} className="px-3.5 py-1.5 border border-[--border] rounded text-sm font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
