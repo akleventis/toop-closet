@@ -62,15 +62,30 @@ export async function uploadImage(file: File, slug: string, token: string): Prom
   return imageUrl
 }
 
+async function resizeImage(file: File, maxDim = 1500): Promise<File> {
+  const bitmap = await createImageBitmap(file)
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise<Blob>(resolve =>
+    canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85)
+  )
+  return new File([blob], 'image.jpg', { type: 'image/jpeg' })
+}
+
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
   if (!token) throw new Error('Not authenticated')
+  const compressed = await resizeImage(file)
   const res = await fetch(`${BASE}/withoutbg?slug=${encodeURIComponent(slug)}`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': file.type,
+      'Content-Type': compressed.type,
     },
-    body: file,
+    body: compressed,
   })
   if (!res.ok) throw new Error('Background removal failed')
   const blob = await res.blob()
