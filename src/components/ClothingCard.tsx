@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import type { ClothingItem } from '../types'
 
 type Props = {
@@ -8,11 +9,25 @@ type Props = {
 }
 
 export default function ClothingCard({ item, isOwner, onEdit, onDelete }: Props) {
+  const [lightbox, setLightbox] = useState(false)
+
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
+
   return (
     <div className="bg-[--bg-subtle] border border-[--border] rounded-lg overflow-hidden flex flex-col">
       <div className="w-full aspect-[4/3] overflow-hidden bg-[--border]">
         {item.imageUrl ? (
-          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-full h-full object-cover cursor-zoom-in"
+            onClick={() => setLightbox(true)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-[--muted] text-xs">No photo</div>
         )}
@@ -39,6 +54,19 @@ export default function ClothingCard({ item, isOwner, onEdit, onDelete }: Props)
           </div>
         )}
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/85 flex items-center justify-center z-[200] p-6 cursor-zoom-out"
+          onClick={() => setLightbox(false)}
+        >
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="max-w-full max-h-full object-contain rounded"
+          />
+        </div>
+      )}
     </div>
   )
 }
