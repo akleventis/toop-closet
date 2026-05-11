@@ -13,6 +13,18 @@ type Item = {
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
+const SLUG_RE = /^[a-z0-9_-]{1,50}$/
+
+function safeImageUrl(value: unknown): string {
+  if (!value) return ''
+  try {
+    const url = new URL(String(value))
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : ''
+  } catch {
+    return ''
+  }
+}
+
 const getInventory = async (slug: string): Promise<Item[]> => {
   try {
     const res = await s3.send(new GetObjectCommand({
@@ -40,7 +52,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   const method = event.httpMethod
   const slug = event.queryStringParameters?.slug
 
-  if (!slug) {
+  if (!slug || !SLUG_RE.test(slug)) {
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
@@ -79,7 +91,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       id: crypto.randomUUID(),
       name: String(body.name),
       category: String(body.category),
-      imageUrl: body.imageUrl ? String(body.imageUrl) : '',
+      imageUrl: safeImageUrl(body.imageUrl),
     }
     items.push(newItem)
     await saveInventory(slug, items)
@@ -93,7 +105,12 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     let updated: Item | undefined
     items = items.map(i => {
       if (i.id !== body.id) return i
-      updated = { ...i, ...body } as Item
+      updated = {
+        id: i.id,
+        name: body.name ? String(body.name) : i.name,
+        category: body.category ? String(body.category) : i.category,
+        imageUrl: body.imageUrl !== undefined ? safeImageUrl(body.imageUrl) : i.imageUrl,
+      }
       return updated
     })
     if (!updated) {

@@ -7,6 +7,7 @@ import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
+const SLUG_RE = /^[a-z0-9_-]{1,50}$/
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   const netlifyUser = requireAuth(context)
@@ -23,7 +24,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   const { contentType, slug } = body as { contentType?: unknown; slug?: unknown }
 
-  if (!slug || typeof slug !== 'string') {
+  if (!slug || typeof slug !== 'string' || !SLUG_RE.test(slug)) {
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
