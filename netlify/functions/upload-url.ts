@@ -1,16 +1,10 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import { parseUsers } from '../lib/users.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
-const s3 = new S3Client({
-  region: process.env.S3_REGION,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
-  },
-})
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
 

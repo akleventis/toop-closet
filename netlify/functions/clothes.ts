@@ -1,4 +1,5 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import { parseUsers } from '../lib/users.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
@@ -11,14 +12,6 @@ type Item = {
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
-
-const s3 = new S3Client({
-  region: process.env.S3_REGION,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
-  },
-})
 
 const getInventory = async (slug: string): Promise<Item[]> => {
   try {

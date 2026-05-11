@@ -2,9 +2,10 @@ type Props = {
   categories: string[]
   active: string
   onChange: (cat: string) => void
+  onAdd?: () => void
 }
 
-export default function CategoryFilter({ categories, active, onChange }: Props) {
+export default function CategoryFilter({ categories, active, onChange, onAdd }: Props) {
   return (
     <div className="flex flex-wrap gap-2 my-5">
       {categories.map(cat => (
@@ -21,6 +22,14 @@ export default function CategoryFilter({ categories, active, onChange }: Props) 
           {cat}
         </button>
       ))}
+      {onAdd && (
+        <button
+          onClick={onAdd}
+          className="px-3.5 py-1 border border-[--border] rounded text-sm text-[--muted] hover:border-[--text] hover:text-[--text] transition-colors"
+        >
+          +
+        </button>
+      )}
     </div>
   )
 }

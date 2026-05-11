@@ -2,12 +2,12 @@ import type { ClothingItem } from '../types'
 
 type Props = {
   item: ClothingItem
-  isAdmin: boolean
+  isOwner: boolean
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
 }
 
-export default function ClothingCard({ item, isAdmin, onEdit, onDelete }: Props) {
+export default function ClothingCard({ item, isOwner, onEdit, onDelete }: Props) {
   return (
     <div className="bg-[--bg-subtle] border border-[--border] rounded-lg overflow-hidden flex flex-col">
       <div className="w-full aspect-[4/3] overflow-hidden bg-[--border]">
@@ -22,7 +22,7 @@ export default function ClothingCard({ item, isAdmin, onEdit, onDelete }: Props)
         <span className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[--border] text-[--muted] uppercase tracking-[0.05em]">
           {item.category}
         </span>
-        {isAdmin && (
+        {isOwner && (
           <div className="flex gap-2 mt-auto pt-2.5">
             <button
               onClick={() => onEdit(item)}

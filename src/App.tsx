@@ -20,7 +20,6 @@ export default function App() {
   const [userSlug, setUserSlug] = useState<string | null>(null)
   const [items, setItems] = useState<ClothingItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState(false)
   const [category, setCategory] = useState('All')
   const [modal, setModal] = useState<ModalState | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -30,10 +29,10 @@ export default function App() {
   const isOwner = !!user && userSlug === slug
 
   useEffect(() => {
-    if (user && token) {
-      getMySlug(token).then(setUserSlug).catch(() => setUserSlug(null))
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    const currentUser = netlifyIdentity.currentUser()
+    const t = currentUser?.token?.access_token ?? ''
+    if (currentUser && t) getMySlug(t).then(setUserSlug).catch(() => setUserSlug(null))
+  }, [])
 
   useEffect(() => {
     const onLogin = (u: User) => {
@@ -55,11 +54,10 @@ export default function App() {
     const controller = new AbortController()
     setLoading(true)
     setItems([])
-    setFetchError(false)
-    fetchItems(slug, controller.signal)
+    fetchItems(slug ?? '', controller.signal)
       .then(data => { setItems(data); setLoading(false) })
       .catch((err: Error) => {
-        if (err.name !== 'AbortError') { setFetchError(true); setLoading(false) }
+        if (err.name !== 'AbortError') setLoading(false)
       })
     return () => controller.abort()
   }, [slug])
@@ -68,6 +66,8 @@ export default function App() {
     () => category === 'All' ? items : items.filter(i => i.category === category),
     [items, category]
   )
+
+  if (!slug) return null
 
   const handleSave = async (item: SavePayload) => {
     if (item.id) {
@@ -99,19 +99,14 @@ export default function App() {
     <div className="min-h-screen">
       <Header slug={slug} user={user} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
-        <CategoryFilter categories={ALL_CATEGORIES} active={category} onChange={setCategory} />
-        {isOwner && (
-          <button
-            className="mb-4 px-3.5 py-1.5 border border-[--border] rounded bg-[--text] text-[--bg] text-sm font-medium hover:opacity-80 transition-opacity"
-            onClick={() => setModal({ mode: 'add' })}
-          >
-            + Add item
-          </button>
-        )}
+        <CategoryFilter
+          categories={ALL_CATEGORIES}
+          active={category}
+          onChange={setCategory}
+          onAdd={isOwner ? () => setModal({ mode: 'add' }) : undefined}
+        />
         {deleteError && <p className="text-[--danger] text-sm text-center mt-3">{deleteError}</p>}
-        {fetchError ? (
-          <p className="text-[--muted] text-sm text-center mt-16">Failed to load inventory. Please refresh.</p>
-        ) : loading ? (
+        {loading ? (
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
         ) : filtered.length === 0 ? (
           <p className="text-[--muted] text-sm text-center mt-16">
@@ -123,7 +118,7 @@ export default function App() {
               <ClothingCard
                 key={item.id}
                 item={item}
-                isAdmin={isOwner}
+                isOwner={isOwner}
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
               />

@@ -62,7 +62,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4"
+      className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
       onClick={busy ? undefined : onClose}
     >
       <div
