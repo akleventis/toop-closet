@@ -38,4 +38,14 @@ export default defineConfig([
       'no-unused-vars': 'off', // TypeScript handles this via noUnusedLocals/noUnusedParameters
     },
   },
+  {
+    files: ['netlify/**/*.ts'],
+    languageOptions: {
+      parser: tsParser,
+      globals: globals.node,
+    },
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
 ])

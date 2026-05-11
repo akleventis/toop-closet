@@ -4,7 +4,13 @@ import { requireAuth } from '../lib/auth.js'
 import { parseUsers } from '../lib/users.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
-const s3 = new S3Client({ region: process.env.AWS_REGION })
+const s3 = new S3Client({
+  region: process.env.S3_REGION,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+  },
+})
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
 
@@ -48,7 +54,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   })
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 })
-  const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`
+  const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`
 
   return {
     statusCode: 200,
