@@ -21,9 +21,10 @@ type Props = {
   onSave: (item: SavePayload) => Promise<void>
   onClose: () => void
   token: string
+  slug: string
 }
 
-export default function ItemModal({ modal, onSave, onClose, token }: Props) {
+export default function ItemModal({ modal, onSave, onClose, token, slug }: Props) {
   const initial: FormState = modal.mode === 'edit' ? { ...modal.item } : empty
   const [form, setForm] = useState<FormState>(initial)
   const [imageFile, setImageFile] = useState<File | null>(null)
@@ -50,7 +51,7 @@ export default function ItemModal({ modal, onSave, onClose, token }: Props) {
     setError(null)
     try {
       let imageUrl = form.imageUrl
-      if (imageFile) imageUrl = await uploadImage(imageFile, token)
+      if (imageFile) imageUrl = await uploadImage(imageFile, slug, token)
       await onSave({ ...form, imageUrl })
     } catch (err) {
       console.error('Save failed', err)

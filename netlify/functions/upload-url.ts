@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { requireAuth } from '../lib/auth.js'
+import { parseUsers } from '../lib/users.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 const s3 = new S3Client({ region: process.env.AWS_REGION })
@@ -8,7 +9,8 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
-  if (!requireAuth(context)) {
+  const netlifyUser = requireAuth(context)
+  if (!netlifyUser) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
@@ -19,18 +21,25 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  const { filename, contentType } = body as { filename?: unknown; contentType?: unknown }
+  const { contentType, slug } = body as { contentType?: unknown; slug?: unknown }
 
-  if (!filename || typeof filename !== 'string' || filename.trim() === '') {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'filename is required' }) }
+  if (!slug || typeof slug !== 'string') {
+    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
+
+  const users = parseUsers()
+  if (!users.has(slug)) {
+    return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
+  }
+  if (netlifyUser.sub !== users.get(slug)) {
+    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
+  }
+
   if (!ALLOWED_IMAGE_TYPES.has(contentType as string)) {
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'contentType must be an image MIME type (jpeg, png, webp, gif, avif)' }) }
   }
 
-  const baseName = filename.split(/[\\/]/).pop() ?? 'upload'
-  const safeName = baseName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200)
-  const key = `clothing/${Date.now()}-${safeName}`
+  const key = `clothing/${slug}/${crypto.randomUUID()}`
 
   const command = new PutObjectCommand({
     Bucket: process.env.S3_BUCKET_NAME,

@@ -26,8 +26,7 @@ dist-ssr
 .env.local
 .env
 .netlify
-
-.todo.md
+plan.md
 CLAUDE.md
 .claude
 SETUP.md

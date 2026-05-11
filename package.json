@@ -15,7 +15,8 @@
     "@netlify/blobs": "^10.7.4",
     "netlify-identity-widget": "^2.0.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.15.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
