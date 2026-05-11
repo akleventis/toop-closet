@@ -12,14 +12,14 @@ type Item = {
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
-const getInventory = async (slug: string): Promise<Item[]> => {
-  const store = getStore('clothing-inventory')
+const getInventory = async (slug: string, context: unknown): Promise<Item[]> => {
+  const store = getStore({ name: 'clothing-inventory', context })
   const raw = await store.get(`inventory-${slug}`)
   return raw ? (JSON.parse(raw) as Item[]) : []
 }
 
-const saveInventory = async (slug: string, items: Item[]): Promise<void> => {
-  const store = getStore('clothing-inventory')
+const saveInventory = async (slug: string, items: Item[], context: unknown): Promise<void> => {
+  const store = getStore({ name: 'clothing-inventory', context })
   await store.set(`inventory-${slug}`, JSON.stringify(items))
 }
 
@@ -37,7 +37,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   }
 
   if (method === 'GET') {
-    const items = await getInventory(slug)
+    const items = await getInventory(slug, context)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
@@ -56,7 +56,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  let items = await getInventory(slug)
+  let items = await getInventory(slug, context)
 
   if (method === 'POST') {
     if (!body.name || !body.category) {
@@ -69,7 +69,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       imageUrl: body.imageUrl ? String(body.imageUrl) : '',
     }
     items.push(newItem)
-    await saveInventory(slug, items)
+    await saveInventory(slug, items, context)
     return { statusCode: 201, headers: JSON_HEADERS, body: JSON.stringify(newItem) }
   }
 
@@ -86,7 +86,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!updated) {
       return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Item not found' }) }
     }
-    await saveInventory(slug, items)
+    await saveInventory(slug, items, context)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(updated) }
   }
 
@@ -95,7 +95,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'id is required' }) }
     }
     items = items.filter(i => i.id !== body.id)
-    await saveInventory(slug, items)
+    await saveInventory(slug, items, context)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 
