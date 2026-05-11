@@ -1,4 +1,4 @@
-import { getStore } from '@netlify/blobs'
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { requireAuth } from '../lib/auth.js'
 import { parseUsers } from '../lib/users.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
@@ -12,15 +12,35 @@ type Item = {
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
-const getInventory = async (slug: string, context: unknown): Promise<Item[]> => {
-  const store = getStore({ name: 'clothing-inventory', context })
-  const raw = await store.get(`inventory-${slug}`)
-  return raw ? (JSON.parse(raw) as Item[]) : []
+const s3 = new S3Client({
+  region: process.env.S3_REGION,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+  },
+})
+
+const getInventory = async (slug: string): Promise<Item[]> => {
+  try {
+    const res = await s3.send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: `inventory/${slug}.json`,
+    }))
+    const body = await res.Body?.transformToString()
+    return body ? (JSON.parse(body) as Item[]) : []
+  } catch (err: unknown) {
+    if ((err as { name?: string }).name === 'NoSuchKey') return []
+    throw err
+  }
 }
 
-const saveInventory = async (slug: string, items: Item[], context: unknown): Promise<void> => {
-  const store = getStore({ name: 'clothing-inventory', context })
-  await store.set(`inventory-${slug}`, JSON.stringify(items))
+const saveInventory = async (slug: string, items: Item[]): Promise<void> => {
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: `inventory/${slug}.json`,
+    Body: JSON.stringify(items),
+    ContentType: 'application/json',
+  }))
 }
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
@@ -37,7 +57,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   }
 
   if (method === 'GET') {
-    const items = await getInventory(slug, context)
+    const items = await getInventory(slug)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
@@ -56,7 +76,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  let items = await getInventory(slug, context)
+  let items = await getInventory(slug)
 
   if (method === 'POST') {
     if (!body.name || !body.category) {
@@ -69,7 +89,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       imageUrl: body.imageUrl ? String(body.imageUrl) : '',
     }
     items.push(newItem)
-    await saveInventory(slug, items, context)
+    await saveInventory(slug, items)
     return { statusCode: 201, headers: JSON_HEADERS, body: JSON.stringify(newItem) }
   }
 
@@ -86,7 +106,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!updated) {
       return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Item not found' }) }
     }
-    await saveInventory(slug, items, context)
+    await saveInventory(slug, items)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(updated) }
   }
 
@@ -95,7 +115,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'id is required' }) }
     }
     items = items.filter(i => i.id !== body.id)
-    await saveInventory(slug, items, context)
+    await saveInventory(slug, items)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 
