@@ -51,7 +51,7 @@ the NAS is now reachable at `https://my-nas.tail******.ts.net` with TLS cert, no
 single-user auth via **netlify identity** with JWT. The identity user → slug mapping lives in a `USERS` env var:
 
 ```
-USERS=toop:abc-uuid-123,vanessa:def-uuid-456
+USERS=toop:abc-uuid-123,yeezy:def-uuid-456
 ```
 
 Netlify functions read `context.clientContext.user` — no database needed.
