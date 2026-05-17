@@ -13,7 +13,7 @@ declare module 'netlify-identity-widget' {
   }
 
   const netlifyIdentity: {
-    init(opts?: { container?: string; locale?: string }): void
+    init(opts?: { container?: string; locale?: string; APIUrl?: string }): void
     open(tabName?: 'login' | 'signup'): void
     close(): void
     logout(): void

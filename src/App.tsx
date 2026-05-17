@@ -10,7 +10,7 @@ import { DEFAULT_CATEGORIES } from './constants'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
-  fetchClosets, fetchConfig, getOwnConfig, updateCategories,
+  fetchClosets, fetchConfig, getOwnProfile, createCloset, updateCategories,
 } from './api'
 import type { ClothingItem, ModalState, SavePayload } from './types'
 
@@ -21,7 +21,7 @@ netlifyIdentity.init({ APIUrl: 'https://toop-closet.netlify.app/.netlify/identit
 export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const [user, setUser] = useState<User | null>(netlifyIdentity.currentUser())
-  const [userSlug, setUserSlug] = useState<string | null>(null)
+  const [userSlugs, setUserSlugs] = useState<string[]>([])
   const [closets, setClosets] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
   const [items, setItems] = useState<ClothingItem[]>([])
@@ -34,18 +34,18 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null)
 
   const token = user?.token?.access_token ?? ''
-  const isOwner = !!user && userSlug === slug
+  const isOwner = !!user && userSlugs.includes(slug ?? '')
 
   // fetch closet list once for nav
   useEffect(() => {
     fetchClosets().then(setClosets).catch(() => {})
   }, [])
 
-  // resolve own slug on mount if already logged in
+  // resolve own slugs on mount if already logged in
   useEffect(() => {
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
-    if (currentUser && t) getOwnConfig(t).then(c => setUserSlug(c.slug)).catch(() => {})
+    if (currentUser && t) getOwnProfile(t).then(p => setUserSlugs(p.slugs)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -53,9 +53,9 @@ export default function App() {
       setUser(u)
       netlifyIdentity.close()
       const t = u.token?.access_token ?? ''
-      if (t) getOwnConfig(t).then(c => setUserSlug(c.slug)).catch(() => {})
+      if (t) getOwnProfile(t).then(p => setUserSlugs(p.slugs)).catch(() => {})
     }
-    const onLogout = () => { setUser(null); setUserSlug(null); setModal(null) }
+    const onLogout = () => { setUser(null); setUserSlugs([]); setModal(null) }
     netlifyIdentity.on('login', onLogin)
     netlifyIdentity.on('logout', onLogout)
     return () => {
@@ -131,21 +131,29 @@ export default function App() {
   }
 
   const handleAddCategory = async (name: string) => {
+    if (!slug) return
     const updated = [...categories, name]
-    const config = await updateCategories(updated, token)
+    const config = await updateCategories(updated, slug, token)
     setCategories(config.categories)
   }
 
   const handleRemoveCategory = async (name: string) => {
+    if (!slug) return
     const updated = categories.filter(c => c !== name)
-    const config = await updateCategories(updated, token)
+    const config = await updateCategories(updated, slug, token)
     setCategories(config.categories)
     if (category === name) setCategory(ALL)
   }
 
+  const handleCreateCloset = async (newSlug: string) => {
+    await createCloset(newSlug, token)
+    setUserSlugs(prev => [...prev, newSlug])
+    setClosets(prev => [...prev, newSlug])
+  }
+
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={closets} user={user} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} />
+      <Header slug={slug} closets={closets} user={user} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}

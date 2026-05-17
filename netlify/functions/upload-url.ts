@@ -2,7 +2,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { isValidSlug } from '../lib/userConfig.js'
+import { readClosetConfig } from '../lib/userConfig.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
@@ -10,7 +10,8 @@ const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 const SLUG_RE = /^[a-z0-9_-]{1,50}$/
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
-  if (!requireAuth(context)) {
+  const user = requireAuth(context)
+  if (!user) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
@@ -27,8 +28,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
-  if (!isValidSlug(slug)) {
-    return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
+  const closetConfig = await readClosetConfig(slug)
+  if (!closetConfig || closetConfig.ownerEmail !== user.email) {
+    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   if (!ALLOWED_IMAGE_TYPES.has(contentType as string)) {

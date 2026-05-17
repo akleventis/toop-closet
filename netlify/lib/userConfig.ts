@@ -1,16 +1,64 @@
-const usersMap: Record<string, string> = (() => {
-  try { return JSON.parse(process.env.USERS_JSON ?? '{}') as Record<string, string> }
-  catch { return {} }
-})()
+import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3'
+import { s3 } from './s3.js'
 
-export function slugForEmail(email: string): string | undefined {
-  return Object.keys(usersMap).find(slug => usersMap[slug] === email)
+export type ClosetConfig = {
+  slug: string
+  ownerEmail: string
+  categories: string[]
 }
 
-export function isValidSlug(slug: string): boolean {
-  return Object.prototype.hasOwnProperty.call(usersMap, slug)
+export async function allSlugs(): Promise<string[]> {
+  const res = await s3.send(new ListObjectsV2Command({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Prefix: 'users/',
+    Delimiter: '/',
+  }))
+  return (res.CommonPrefixes ?? [])
+    .map(p => p.Prefix?.slice('users/'.length).replace('/', '') ?? '')
+    .filter(Boolean)
 }
 
-export function allSlugs(): string[] {
-  return Object.keys(usersMap)
+export async function readClosetConfig(slug: string): Promise<ClosetConfig | null> {
+  try {
+    const res = await s3.send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: `users/${slug}/config.json`,
+    }))
+    return JSON.parse(await res.Body!.transformToString()) as ClosetConfig
+  } catch (err: unknown) {
+    if ((err as { name?: string }).name === 'NoSuchKey') return null
+    throw err
+  }
+}
+
+export async function writeClosetConfig(config: ClosetConfig): Promise<void> {
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: `users/${config.slug}/config.json`,
+    Body: JSON.stringify(config),
+    ContentType: 'application/json',
+  }))
+}
+
+export async function readUserIndex(userId: string): Promise<string[] | null> {
+  try {
+    const res = await s3.send(new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: `_users/${userId}.json`,
+    }))
+    const data = JSON.parse(await res.Body!.transformToString()) as { slugs: string[] }
+    return data.slugs
+  } catch (err: unknown) {
+    if ((err as { name?: string }).name === 'NoSuchKey') return null
+    throw err
+  }
+}
+
+export async function writeUserIndex(userId: string, slugs: string[]): Promise<void> {
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: `_users/${userId}.json`,
+    Body: JSON.stringify({ slugs }),
+    ContentType: 'application/json',
+  }))
 }

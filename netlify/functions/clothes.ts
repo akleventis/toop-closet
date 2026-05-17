@@ -1,7 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { isValidSlug } from '../lib/userConfig.js'
+import { readClosetConfig } from '../lib/userConfig.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type Item = {
@@ -57,17 +57,19 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
-  if (!isValidSlug(slug)) {
-    return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
-  }
-
   if (method === 'GET') {
     const items = await getInventory(slug)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
-  if (!requireAuth(context)) {
+  const user = requireAuth(context)
+  if (!user) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
+  }
+
+  const closetConfig = await readClosetConfig(slug)
+  if (!closetConfig || closetConfig.ownerEmail !== user.email) {
+    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   let body: Record<string, unknown>

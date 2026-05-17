@@ -3,6 +3,10 @@ export type UserConfig = {
   categories: string[]
 }
 
+export type OwnProfile = {
+  slugs: string[]
+}
+
 export type ClothingItem = {
   id: string
   name: string

@@ -1,4 +1,4 @@
-import type { ClothingItem, SavePayload, UserConfig } from './types'
+import type { ClothingItem, SavePayload, UserConfig, OwnProfile } from './types'
 
 const BASE = '/.netlify/functions'
 
@@ -89,17 +89,30 @@ export async function fetchConfig(slug: string): Promise<UserConfig> {
   return res.json() as Promise<UserConfig>
 }
 
-export async function getOwnConfig(token: string): Promise<UserConfig> {
+export async function getOwnProfile(token: string): Promise<OwnProfile> {
   const res = await fetch(`${BASE}/config`, { headers: authHeaders(token) })
-  if (!res.ok) throw new Error('Failed to fetch own config')
+  if (!res.ok) throw new Error('Failed to fetch own profile')
+  return res.json() as Promise<OwnProfile>
+}
+
+export async function createCloset(slug: string, token: string): Promise<UserConfig> {
+  const res = await fetch(`${BASE}/config`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ slug }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(err.error ?? 'Failed to create closet')
+  }
   return res.json() as Promise<UserConfig>
 }
 
-export async function updateCategories(categories: string[], token: string): Promise<UserConfig> {
+export async function updateCategories(categories: string[], slug: string, token: string): Promise<UserConfig> {
   const res = await fetch(`${BASE}/config`, {
     method: 'PUT',
     headers: authHeaders(token),
-    body: JSON.stringify({ categories }),
+    body: JSON.stringify({ slug, categories }),
   })
   if (!res.ok) throw new Error('Failed to update categories')
   return res.json() as Promise<UserConfig>
