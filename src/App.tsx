@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import netlifyIdentity from 'netlify-identity-widget'
 import type { User } from 'netlify-identity-widget'
 import Header from './components/Header'
@@ -10,7 +10,7 @@ import { DEFAULT_CATEGORIES } from './constants'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
-  fetchClosets, fetchConfig, getOwnProfile, createCloset, updateCategories,
+  fetchClosets, fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
 } from './api'
 import type { ClothingItem, ModalState, SavePayload } from './types'
 
@@ -20,6 +20,7 @@ netlifyIdentity.init({ APIUrl: 'https://toop-closet.netlify.app/.netlify/identit
 
 export default function App() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(netlifyIdentity.currentUser())
   const [userSlugs, setUserSlugs] = useState<string[]>([])
   const [closets, setClosets] = useState<string[]>([])
@@ -31,6 +32,7 @@ export default function App() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
+  const [closetName, setClosetName] = useState<string | undefined>(undefined)
   const [toast, setToast] = useState<string | null>(null)
 
   const token = user?.token?.access_token ?? ''
@@ -74,7 +76,7 @@ export default function App() {
       .then(data => { setItems(data); setLoading(false) })
       .catch((err: Error) => { if (err.name !== 'AbortError') setLoading(false) })
     fetchConfig(slug)
-      .then(c => setCategories(c.categories))
+      .then(c => { setCategories(c.categories); setClosetName(c.name) })
       .catch(() => setCategories(DEFAULT_CATEGORIES))
     return () => controller.abort()
   }, [slug])
@@ -151,9 +153,31 @@ export default function App() {
     setClosets(prev => [...prev, newSlug])
   }
 
+  const handleRenameCloset = async (name: string) => {
+    if (!slug) return
+    const config = await updateClosetName(name, slug, token)
+    setClosetName(config.name)
+  }
+
+  const handleDeleteCloset = async () => {
+    if (!slug) return
+    await deleteCloset(slug, token)
+    setUserSlugs(prev => prev.filter(s => s !== slug))
+    setClosets(prev => prev.filter(s => s !== slug))
+    const remaining = closets.filter(s => s !== slug)
+    navigate(remaining.length > 0 ? `/${remaining[0]}` : '/')
+  }
+
+  const handleTransferItem = async (item: ClothingItem, targetSlug: string) => {
+    const { id: _id, ...payload } = item
+    await createItem(payload, targetSlug, token)
+    await deleteItem(item.id, slug!, token)
+    setItems(prev => prev.filter(i => i.id !== item.id))
+  }
+
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={closets} user={user} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
+      <Header slug={slug} closets={closets} user={user} closetName={closetName} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} onRenameCloset={isOwner ? handleRenameCloset : undefined} onDeleteCloset={isOwner ? handleDeleteCloset : undefined} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}
@@ -178,8 +202,10 @@ export default function App() {
                 item={item}
                 isOwner={isOwner}
                 isProcessing={processingBg.has(item.id)}
+                otherClosets={isOwner ? userSlugs.filter(s => s !== slug) : []}
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
+                onTransfer={isOwner ? handleTransferItem : undefined}
               />
             ))}
           </div>

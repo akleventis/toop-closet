@@ -5,13 +5,17 @@ type Props = {
   item: ClothingItem
   isOwner: boolean
   isProcessing?: boolean
+  otherClosets?: string[]
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
+  onTransfer?: (item: ClothingItem, targetSlug: string) => Promise<void>
 }
 
-export default function ClothingCard({ item, isOwner, isProcessing, onEdit, onDelete }: Props) {
+export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], onEdit, onDelete, onTransfer }: Props) {
   const [lightbox, setLightbox] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [transferring, setTransferring] = useState(false)
+  const [showTransfer, setShowTransfer] = useState(false)
 
   useEffect(() => {
     if (!lightbox) return
@@ -57,19 +61,46 @@ export default function ClothingCard({ item, isOwner, isProcessing, onEdit, onDe
           <p className="text-xs text-[--muted] mt-0.5">{item.notes}</p>
         )}
         {isOwner && (
-          <div className="flex gap-2 mt-auto pt-2.5" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => onEdit(item)}
-              className="px-2.5 py-0.5 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => onDelete(item.id)}
-              className="px-2.5 py-0.5 border border-[--danger] rounded text-[--danger] text-xs font-medium hover:bg-[--bg-subtle] transition-colors"
-            >
-              Delete
-            </button>
+          <div className="flex flex-col gap-1.5 mt-auto pt-2.5" onClick={e => e.stopPropagation()}>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onEdit(item)}
+                className="px-2.5 py-0.5 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => onDelete(item.id)}
+                className="px-2.5 py-0.5 border border-[--danger] rounded text-[--danger] text-xs font-medium hover:bg-[--bg-subtle] transition-colors"
+              >
+                Delete
+              </button>
+              {onTransfer && otherClosets.length > 0 && (
+                <button
+                  onClick={() => setShowTransfer(t => !t)}
+                  className="px-2.5 py-0.5 border border-[--border] rounded text-[--muted] text-xs font-medium hover:bg-[--bg-subtle] transition-colors"
+                >
+                  Transfer
+                </button>
+              )}
+            </div>
+            {showTransfer && (
+              <div className="flex flex-wrap gap-1.5">
+                {otherClosets.map(target => (
+                  <button
+                    key={target}
+                    disabled={transferring}
+                    onClick={async () => {
+                      setTransferring(true)
+                      try { await onTransfer?.(item, target) } finally { setTransferring(false); setShowTransfer(false) }
+                    }}
+                    className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
+                  >
+                    {transferring ? '…' : `→ ${target}`}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

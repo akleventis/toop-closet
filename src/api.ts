@@ -118,6 +118,25 @@ export async function updateCategories(categories: string[], slug: string, token
   return res.json() as Promise<UserConfig>
 }
 
+export async function deleteCloset(slug: string, token: string): Promise<void> {
+  const res = await fetch(`${BASE}/config`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+    body: JSON.stringify({ slug }),
+  })
+  if (!res.ok) throw new Error('Failed to delete closet')
+}
+
+export async function updateClosetName(name: string, slug: string, token: string): Promise<UserConfig> {
+  const res = await fetch(`${BASE}/config`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ slug, name }),
+  })
+  if (!res.ok) throw new Error('Failed to update closet name')
+  return res.json() as Promise<UserConfig>
+}
+
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
   if (!token) throw new Error('Not authenticated')
   const compressed = await resizeImage(file)

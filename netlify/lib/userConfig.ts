@@ -5,6 +5,7 @@ export type ClosetConfig = {
   slug: string
   ownerEmail: string
   categories: string[]
+  name?: string
 }
 
 export async function allSlugs(): Promise<string[]> {

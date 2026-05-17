@@ -1,6 +1,7 @@
 export type UserConfig = {
   slug: string
   categories: string[]
+  name?: string
 }
 
 export type OwnProfile = {

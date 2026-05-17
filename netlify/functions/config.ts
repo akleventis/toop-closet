@@ -1,3 +1,5 @@
+import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import {
   allSlugs, readClosetConfig, writeClosetConfig,
@@ -87,9 +89,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     }
   }
 
-  // Auth: PUT { slug, categories } → update own closet's categories
+  // Auth: PUT { slug, categories?, name? } → update own closet
   if (method === 'PUT') {
-    const { slug: putSlug, categories } = body as { slug?: unknown; categories?: unknown }
+    const { slug: putSlug, categories, name } = body as { slug?: unknown; categories?: unknown; name?: unknown }
     if (!putSlug || typeof putSlug !== 'string' || !SLUG_RE.test(putSlug)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
     }
@@ -100,20 +102,51 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (config.ownerEmail !== netlifyUser.email) {
       return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
     }
-    if (
-      !Array.isArray(categories) ||
-      categories.length === 0 ||
-      (categories as unknown[]).some(c => typeof c !== 'string' || !c.trim() || c.length > 40)
-    ) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'categories must be a non-empty array of strings (max 40 chars each)' }) }
+    const updated = { ...config }
+    if (categories !== undefined) {
+      if (
+        !Array.isArray(categories) ||
+        categories.length === 0 ||
+        (categories as unknown[]).some(c => typeof c !== 'string' || !c.trim() || c.length > 40)
+      ) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'categories must be a non-empty array of strings (max 40 chars each)' }) }
+      }
+      updated.categories = categories as string[]
     }
-    const updated = { ...config, categories: categories as string[] }
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0 || name.length > 60) {
+        return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a non-empty string (max 60 chars)' }) }
+      }
+      updated.name = name.trim()
+    }
     await writeClosetConfig(updated)
     return {
       statusCode: 200,
       headers: JSON_HEADERS,
-      body: JSON.stringify({ slug: updated.slug, categories: updated.categories }),
+      body: JSON.stringify({ slug: updated.slug, categories: updated.categories, name: updated.name }),
     }
+  }
+
+  // Auth: DELETE { slug } → delete own closet (config + inventory, images orphaned)
+  if (method === 'DELETE') {
+    const { slug: delSlug } = body as { slug?: unknown }
+    if (!delSlug || typeof delSlug !== 'string' || !SLUG_RE.test(delSlug)) {
+      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
+    }
+    const config = await readClosetConfig(delSlug)
+    if (!config) {
+      return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
+    }
+    if (config.ownerEmail !== netlifyUser.email) {
+      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
+    }
+    await Promise.all([
+      s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: `users/${delSlug}/config.json` })),
+      s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: `inventory/${delSlug}.json` })),
+    ])
+    const currentSlugs = (await readUserIndex(netlifyUser.sub)) ?? []
+    await writeUserIndex(netlifyUser.sub, currentSlugs.filter(s => s !== delSlug))
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 
   return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) }
