@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import type { FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import netlifyIdentity from 'netlify-identity-widget'
 import type { User } from 'netlify-identity-widget'
@@ -15,13 +16,18 @@ import {
 import type { ClothingItem, ModalState, SavePayload } from './types'
 
 const ALL = 'All'
+const IS_DEV = import.meta.env.DEV
+const DEV_TOKEN = 'dev-bypass'
+const DEV_USER = { token: { access_token: DEV_TOKEN } } as unknown as User
 
-netlifyIdentity.init({ APIUrl: 'https://toop-closet.netlify.app/.netlify/identity' })
+if (!IS_DEV) {
+  netlifyIdentity.init({ APIUrl: 'https://toop-closet.netlify.app/.netlify/identity' })
+}
 
 export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const [user, setUser] = useState<User | null>(netlifyIdentity.currentUser())
+  const [user, setUser] = useState<User | null>(IS_DEV ? DEV_USER : netlifyIdentity.currentUser())
   const [userSlugs, setUserSlugs] = useState<string[]>([])
   const [closets, setClosets] = useState<string[]>([])
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
@@ -34,6 +40,11 @@ export default function App() {
   const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
   const [closetName, setClosetName] = useState<string | undefined>(undefined)
   const [toast, setToast] = useState<string | null>(null)
+  const [renamingCloset, setRenamingCloset] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameLoading, setRenameLoading] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteClosetLoading, setDeleteClosetLoading] = useState(false)
 
   const token = user?.token?.access_token ?? ''
   const isOwner = !!user && userSlugs.includes(slug ?? '')
@@ -45,12 +56,17 @@ export default function App() {
 
   // resolve own slugs on mount if already logged in
   useEffect(() => {
+    if (IS_DEV) {
+      getOwnProfile(DEV_TOKEN).then(p => setUserSlugs(p.slugs)).catch(() => {})
+      return
+    }
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
     if (currentUser && t) getOwnProfile(t).then(p => setUserSlugs(p.slugs)).catch(() => {})
   }, [])
 
   useEffect(() => {
+    if (IS_DEV) return
     const onLogin = (u: User) => {
       setUser(u)
       netlifyIdentity.close()
@@ -153,19 +169,32 @@ export default function App() {
     setClosets(prev => [...prev, newSlug])
   }
 
-  const handleRenameCloset = async (name: string) => {
-    if (!slug) return
-    const config = await updateClosetName(name, slug, token)
-    setClosetName(config.name)
+  const handleRenameCloset = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!slug || !renameValue.trim()) return
+    setRenameLoading(true)
+    try {
+      const config = await updateClosetName(renameValue.trim(), slug, token)
+      setClosetName(config.name)
+      setRenamingCloset(false)
+    } finally {
+      setRenameLoading(false)
+    }
   }
 
   const handleDeleteCloset = async () => {
     if (!slug) return
-    await deleteCloset(slug, token)
-    setUserSlugs(prev => prev.filter(s => s !== slug))
-    setClosets(prev => prev.filter(s => s !== slug))
-    const remaining = closets.filter(s => s !== slug)
-    navigate(remaining.length > 0 ? `/${remaining[0]}` : '/')
+    setDeleteClosetLoading(true)
+    try {
+      await deleteCloset(slug, token)
+      setUserSlugs(prev => prev.filter(s => s !== slug))
+      setClosets(prev => prev.filter(s => s !== slug))
+      const remaining = closets.filter(s => s !== slug)
+      navigate(remaining.length > 0 ? `/${remaining[0]}` : '/')
+    } finally {
+      setDeleteClosetLoading(false)
+      setConfirmingDelete(false)
+    }
   }
 
   const handleTransferItem = async (item: ClothingItem, targetSlug: string) => {
@@ -177,7 +206,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={closets} user={user} closetName={closetName} onLogin={() => netlifyIdentity.open()} onLogout={() => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} onRenameCloset={isOwner ? handleRenameCloset : undefined} onDeleteCloset={isOwner ? handleDeleteCloset : undefined} />
+      <Header slug={slug} closets={closets} user={user} closetName={closetName} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}
@@ -186,7 +215,38 @@ export default function App() {
           onAdd={isOwner ? () => setModal({ mode: 'add' }) : undefined}
           onAddCategory={isOwner ? handleAddCategory : undefined}
           onRemoveCategory={isOwner ? handleRemoveCategory : undefined}
+          onRename={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenamingCloset(true) } : undefined}
+          onDelete={isOwner ? () => setConfirmingDelete(true) : undefined}
         />
+        {renamingCloset && (
+          <form onSubmit={handleRenameCloset} className="flex items-center gap-2 mb-4">
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              maxLength={60}
+              className="px-2.5 py-1.5 border border-[--border] rounded text-sm bg-[--bg] text-[--text] w-44 focus:outline-none"
+              disabled={renameLoading}
+            />
+            <button type="submit" disabled={renameLoading || !renameValue.trim()} className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              {renameLoading ? '…' : 'Save'}
+            </button>
+            <button type="button" onClick={() => setRenamingCloset(false)} className="px-3 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle]">
+              Cancel
+            </button>
+          </form>
+        )}
+        {confirmingDelete && (
+          <div className="flex items-center gap-3 p-3 mb-4 border border-[--danger] rounded text-sm">
+            <span className="text-[--text] flex-1">Delete <strong>{closetName ?? slug}</strong>? All items will be permanently removed.</span>
+            <button onClick={handleDeleteCloset} disabled={deleteClosetLoading} className="px-3 py-1 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40 shrink-0">
+              {deleteClosetLoading ? '…' : 'Delete'}
+            </button>
+            <button onClick={() => setConfirmingDelete(false)} className="px-3 py-1 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] shrink-0">
+              Cancel
+            </button>
+          </div>
+        )}
         {deleteError && <p className="text-[--danger] text-sm text-center mt-3">{deleteError}</p>}
         {loading ? (
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>

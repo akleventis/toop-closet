@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react'
+import Menu from './Menu'
+import type { MenuItem } from './Menu'
 
 type Props = {
   categories: string[]
@@ -7,9 +9,11 @@ type Props = {
   onAdd?: () => void
   onAddCategory?: (name: string) => void
   onRemoveCategory?: (name: string) => void
+  onRename?: () => void
+  onDelete?: () => void
 }
 
-export default function CategoryFilter({ categories, active, onChange, onAdd, onAddCategory, onRemoveCategory }: Props) {
+export default function CategoryFilter({ categories, active, onChange, onAdd, onAddCategory, onRemoveCategory, onRename, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
   const [newCat, setNewCat] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -54,17 +58,13 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
           )
         })}
 
-        {!editing && onAdd && (
-          <button onClick={onAdd} className={inactivePill}>+</button>
-        )}
-
-        {onAddCategory && (
-          <button
-            onClick={() => setEditing(e => !e)}
-            className="text-xs text-[--muted] hover:text-[--text] transition-colors px-1 self-center"
-          >
-            {editing ? 'done' : 'edit categories'}
-          </button>
+        {(onAdd || onAddCategory || onRename || onDelete) && (
+          <Menu items={[
+            onAdd && { label: 'Add item', onClick: onAdd },
+            onAddCategory && { label: editing ? 'Done editing' : 'Edit categories', onClick: () => setEditing(e => !e) },
+            onRename && { label: 'Rename closet', onClick: onRename },
+            onDelete && { label: 'Delete closet', danger: true, onClick: onDelete },
+          ].filter(Boolean) as MenuItem[]} />
         )}
       </div>
 

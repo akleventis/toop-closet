@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { ClothingItem } from '../types'
+import Menu from './Menu'
 
 type Props = {
   item: ClothingItem
@@ -14,8 +15,8 @@ type Props = {
 export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], onEdit, onDelete, onTransfer }: Props) {
   const [lightbox, setLightbox] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const [transferring, setTransferring] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
+  const [transferring, setTransferring] = useState(false)
 
   useEffect(() => {
     if (!lightbox) return
@@ -24,9 +25,15 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
 
+  const menuItems = [
+    { label: 'Edit', onClick: () => onEdit(item) },
+    ...(onTransfer && otherClosets.length > 0 ? [{ label: 'Transfer', onClick: () => setShowTransfer(t => !t) }] : []),
+    { label: 'Delete', danger: true, onClick: () => onDelete(item.id) },
+  ]
+
   return (
-    <div className="bg-[--bg-subtle] border border-[--border] rounded-lg overflow-hidden flex flex-col">
-      <div className="w-full aspect-[4/3] overflow-hidden bg-[--border] relative">
+    <div className="bg-[--bg-subtle] border border-[--border] rounded-lg flex flex-col">
+      <div className="w-full aspect-[4/3] overflow-hidden bg-[--border] relative rounded-t-lg">
         {item.imageUrl ? (
           <>
             <img
@@ -53,54 +60,35 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         className="p-3 flex flex-col gap-1.5 flex-1 cursor-pointer"
         onClick={() => setExpanded(e => !e)}
       >
-        <div className="font-semibold text-sm">{item.name}</div>
+        <div className="flex items-start justify-between gap-1">
+          <div className="font-semibold text-sm">{item.name}</div>
+          {isOwner && (
+            <div onClick={e => e.stopPropagation()}>
+              <Menu items={menuItems} />
+            </div>
+          )}
+        </div>
         <span className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[--border] text-[--muted] uppercase tracking-[0.05em]">
           {item.category}
         </span>
         {expanded && item.notes && (
           <p className="text-xs text-[--muted] mt-0.5">{item.notes}</p>
         )}
-        {isOwner && (
-          <div className="flex flex-col gap-1.5 mt-auto pt-2.5" onClick={e => e.stopPropagation()}>
-            <div className="flex gap-2">
+        {showTransfer && (
+          <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
+            {otherClosets.map(target => (
               <button
-                onClick={() => onEdit(item)}
-                className="px-2.5 py-0.5 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity"
+                key={target}
+                disabled={transferring}
+                onClick={async () => {
+                  setTransferring(true)
+                  try { await onTransfer?.(item, target) } finally { setTransferring(false); setShowTransfer(false) }
+                }}
+                className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
               >
-                Edit
+                {transferring ? '…' : `→ ${target}`}
               </button>
-              <button
-                onClick={() => onDelete(item.id)}
-                className="px-2.5 py-0.5 border border-[--danger] rounded text-[--danger] text-xs font-medium hover:bg-[--bg-subtle] transition-colors"
-              >
-                Delete
-              </button>
-              {onTransfer && otherClosets.length > 0 && (
-                <button
-                  onClick={() => setShowTransfer(t => !t)}
-                  className="px-2.5 py-0.5 border border-[--border] rounded text-[--muted] text-xs font-medium hover:bg-[--bg-subtle] transition-colors"
-                >
-                  Transfer
-                </button>
-              )}
-            </div>
-            {showTransfer && (
-              <div className="flex flex-wrap gap-1.5">
-                {otherClosets.map(target => (
-                  <button
-                    key={target}
-                    disabled={transferring}
-                    onClick={async () => {
-                      setTransferring(true)
-                      try { await onTransfer?.(item, target) } finally { setTransferring(false); setShowTransfer(false) }
-                    }}
-                    className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
-                  >
-                    {transferring ? '…' : `→ ${target}`}
-                  </button>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
         )}
       </div>
