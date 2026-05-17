@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom'
 import type { User } from 'netlify-identity-widget'
-import { SLUGS } from '../constants'
 
 type Props = {
   slug: string
+  closets: string[]
   user: User | null
   onLogin: () => void
   onLogout: () => void
 }
 
-export default function Header({ slug, user, onLogin, onLogout }: Props) {
+export default function Header({ slug, closets, user, onLogin, onLogout }: Props) {
   return (
     <header className="px-4 py-5 max-w-4xl mx-auto border-b border-[--border] mb-1">
       <div className="flex items-center justify-between">
@@ -24,17 +24,19 @@ export default function Header({ slug, user, onLogin, onLogout }: Props) {
           </button>
         )}
       </div>
-      <nav className="flex gap-3 mt-3">
-        {SLUGS.map(s => (
-          <Link
-            key={s}
-            to={`/${s}`}
-            className={`text-sm lowercase tracking-wide transition-colors ${s === slug ? 'text-[--text] font-medium' : 'text-[--muted] hover:text-[--text]'}`}
-          >
-            {s}
-          </Link>
-        ))}
-      </nav>
+      {closets.length > 1 && (
+        <nav className="flex gap-3 mt-3">
+          {closets.map(s => (
+            <Link
+              key={s}
+              to={`/${s}`}
+              className={`text-sm lowercase tracking-wide transition-colors ${s === slug ? 'text-[--text] font-medium' : 'text-[--muted] hover:text-[--text]'}`}
+            >
+              {s}
+            </Link>
+          ))}
+        </nav>
+      )}
     </header>
   )
 }

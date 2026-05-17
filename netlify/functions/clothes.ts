@@ -1,7 +1,7 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { parseUsers } from '../lib/users.js'
+import { isValidSlug } from '../lib/userConfig.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type Item = {
@@ -9,6 +9,7 @@ type Item = {
   name: string
   category: string
   imageUrl: string
+  notes?: string
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
@@ -56,8 +57,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
-  const users = parseUsers()
-  if (!users.has(slug)) {
+  if (!isValidSlug(slug)) {
     return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
   }
 
@@ -66,12 +66,8 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
-  const netlifyUser = requireAuth(context)
-  if (!netlifyUser) {
+  if (!requireAuth(context)) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
-  }
-  if (netlifyUser.sub !== users.get(slug)) {
-    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   let body: Record<string, unknown>
@@ -92,6 +88,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       name: String(body.name),
       category: String(body.category),
       imageUrl: safeImageUrl(body.imageUrl),
+      ...(body.notes ? { notes: String(body.notes).slice(0, 50) } : {}),
     }
     items.push(newItem)
     await saveInventory(slug, items)
@@ -110,6 +107,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
         name: body.name ? String(body.name) : i.name,
         category: body.category ? String(body.category) : i.category,
         imageUrl: body.imageUrl !== undefined ? safeImageUrl(body.imageUrl) : i.imageUrl,
+        notes: body.notes !== undefined ? String(body.notes).slice(0, 50) || undefined : i.notes,
       }
       return updated
     })

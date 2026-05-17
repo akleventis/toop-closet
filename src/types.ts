@@ -1,8 +1,14 @@
+export type UserConfig = {
+  slug: string
+  categories: string[]
+}
+
 export type ClothingItem = {
   id: string
   name: string
   category: string
   imageUrl: string
+  notes?: string
 }
 
 export type SavePayload = Omit<ClothingItem, 'id'> & { id?: string }

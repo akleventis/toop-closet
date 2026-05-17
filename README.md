@@ -48,10 +48,10 @@ the NAS is now reachable at `https://my-nas.tail******.ts.net` with TLS cert, no
 
 ### Auth — Netlify Identity
 
-single-user auth via **netlify identity** with JWT. The identity user → slug mapping lives in a `USERS` env var:
+Single-owner auth via **netlify identity** with JWT. If you're logged in, you can edit any closet. Valid slugs are defined in a `CLOSETS` env var:
 
 ```
-USERS=toop:abc-uuid-123,yeezy:def-uuid-456
+CLOSETS=denver,central-coast
 ```
 
 Netlify functions read `context.clientContext.user` — no database needed.
@@ -88,6 +88,111 @@ src/
     CategoryFilter.tsx ← filter pills + add button
     Header.tsx
 ```
+
+---
+
+## Local Development
+
+The full stack — React, Netlify Functions, AWS S3, and Netlify Identity — runs locally via `netlify dev`. No pushing to prod to test.
+
+### Prerequisites
+
+- Node.js 18+
+- A Netlify site deployed with these env vars set in the dashboard: `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION`, `S3_BUCKET_NAME`, `USERS_JSON`, `WITHOUTBG_URL`, `WITHOUTBG_SECRET`
+- AWS S3 CORS updated to allow `http://localhost:8888` (one-time, see below)
+
+### 1. S3 CORS — allow localhost
+
+The browser uploads images directly to S3 via presigned PUT URLs. The bucket's CORS policy must include `http://localhost:8888` or the PUT will be blocked.
+
+In **AWS Console → S3 → your bucket → Permissions → Cross-origin resource sharing (CORS)**:
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["PUT"],
+    "AllowedOrigins": [
+      "https://your-site.netlify.app",
+      "http://localhost:8888"
+    ],
+    "ExposeHeaders": []
+  }
+]
+```
+
+This is the only AWS change needed for local dev.
+
+### 2. Install and link (one-time)
+
+```bash
+npm install
+
+# Authenticate with Netlify
+npx netlify login
+
+# Link this directory to your deployed Netlify site.
+# This allows netlify dev to pull env vars (AWS keys, USERS, WITHOUTBG_*) automatically.
+npx netlify link
+```
+
+When prompted by `netlify link`, choose your site from the list. A `.netlify/state.json` file is created locally (gitignored).
+
+### 3. Run
+
+```bash
+npx netlify dev
+```
+
+This starts:
+- **Vite** on port 5173 (React frontend, HMR)
+- **Netlify Functions** runtime serving `netlify/functions/`
+- A unified proxy on **http://localhost:8888** that wires them together
+
+Open **http://localhost:8888** — the app is fully functional including functions and auth.
+
+### How env vars work
+
+`netlify dev` pulls all env vars from the linked Netlify site via the API. No `.env` file required if the site is linked.
+
+To override a variable locally (e.g. point background removal at a local instance), create `.env` in the project root (gitignored):
+
+```
+WITHOUTBG_URL=http://192.168.1.143:8088
+WITHOUTBG_SECRET=your-secret
+```
+
+Local `.env` and `.env.local` values take precedence over the site's env vars.
+
+### How auth works locally
+
+Netlify Identity is a hosted service — there is no local mock. The Identity widget in the browser connects to your live Netlify Identity instance. `netlify dev` intercepts the JWT and injects `context.clientContext.user` into function calls, exactly as it does in production.
+
+Log in using the same email and password you use on the live site. Auth works identically.
+
+### Background removal
+
+Background removal calls your NAS via `WITHOUTBG_URL`. For it to work during local dev, the NAS must be reachable (Tailscale must be connected). If the NAS is offline, bg removal fails silently — the item saves with the raw image and a toast is shown.
+
+To develop against a local withoutbg instance instead:
+
+```bash
+# Run withoutbg locally via Docker
+docker run -p 8088:8088 withoutbg/app:latest
+```
+
+Then set in `.env`:
+```
+WITHOUTBG_URL=http://localhost:8088
+WITHOUTBG_SECRET=
+```
+
+### `npm run dev` vs `netlify dev`
+
+| Command | What runs | Use when |
+|---|---|---|
+| `npm run dev` | Vite only (port 5173) | Pure frontend work, no function calls needed |
+| `npx netlify dev` | Vite + Functions + Identity (port 8888) | Any feature that touches functions or auth |
 
 ---
 

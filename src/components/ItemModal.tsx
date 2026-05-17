@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { CATEGORIES } from '../constants'
-import { uploadImage, removeBackground } from '../api'
+import { uploadImage } from '../api'
 import type { ModalState, SavePayload } from '../types'
 
 type FormState = {
@@ -9,28 +8,30 @@ type FormState = {
   name: string
   category: string
   imageUrl: string
+  notes: string
 }
-
-const empty: FormState = { name: '', category: 'Tee Shirts', imageUrl: '' }
 
 const field = 'w-full px-2.5 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none focus:ring-1 focus:ring-[--text]'
 const label = 'flex flex-col gap-1 text-sm font-medium text-[--muted]'
 
 type Props = {
   modal: ModalState
-  onSave: (item: SavePayload) => Promise<void>
+  onSave: (item: SavePayload, bgFile?: File) => Promise<void>
   onClose: () => void
   token: string
   slug: string
+  categories: string[]
 }
 
-export default function ItemModal({ modal, onSave, onClose, token, slug }: Props) {
-  const initial: FormState = modal.mode === 'edit' ? { ...modal.item } : empty
+export default function ItemModal({ modal, onSave, onClose, token, slug, categories }: Props) {
+  const initial: FormState = modal.mode === 'edit'
+    ? { ...modal.item, notes: modal.item.notes ?? '' }
+    : { name: '', category: categories[0] ?? '', imageUrl: '', notes: '' }
   const [form, setForm] = useState<FormState>(initial)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
-  const [removingBg, setRemovingBg] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [removeBg, setRemoveBg] = useState(() => localStorage.getItem('removeBg') !== 'false')
 
   const previewUrl = useMemo(
     () => (imageFile ? URL.createObjectURL(imageFile) : null),
@@ -46,20 +47,6 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(prev => ({ ...prev, [f]: e.target.value }))
 
-  const handleRemoveBg = async () => {
-    if (!imageFile) return
-    setRemovingBg(true)
-    setError(null)
-    try {
-      const cleaned = await removeBackground(imageFile, slug, token)
-      setImageFile(cleaned)
-    } catch {
-      setError('Background removal failed. Please try again.')
-    } finally {
-      setRemovingBg(false)
-    }
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
@@ -67,7 +54,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
     try {
       let imageUrl = form.imageUrl
       if (imageFile) imageUrl = await uploadImage(imageFile, slug, token)
-      await onSave({ ...form, imageUrl })
+      await onSave({ ...form, imageUrl }, removeBg && imageFile ? imageFile : undefined)
     } catch (err) {
       console.error('Save failed', err)
       setError('Save failed. Please try again.')
@@ -95,7 +82,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
           <label className={label}>
             Category
             <select value={form.category} onChange={set('category')} className={field}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className={label}>
@@ -105,16 +92,36 @@ export default function ItemModal({ modal, onSave, onClose, token, slug }: Props
             )}
             <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] ?? null)} className="text-sm text-[--muted]" />
           </label>
-          {imageFile && (
-            <button
-              type="button"
-              disabled={removingBg || busy}
-              onClick={handleRemoveBg}
-              className="self-start px-3 py-1.5 border border-[--border] rounded text-sm font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
-            >
-              {removingBg ? 'Removing background…' : 'Remove background'}
-            </button>
-          )}
+          <label className={label}>
+            Notes
+            <div className="relative">
+              <input
+                type="text"
+                maxLength={50}
+                value={form.notes}
+                onChange={set('notes')}
+                placeholder="optional"
+                className={field}
+              />
+              {form.notes.length > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-[--muted]">
+                  {50 - form.notes.length}
+                </span>
+              )}
+            </div>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-[--muted] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={removeBg}
+              onChange={e => {
+                setRemoveBg(e.target.checked)
+                localStorage.setItem('removeBg', String(e.target.checked))
+              }}
+              className="cursor-pointer"
+            />
+            Remove background
+          </label>
           {error && <p className="text-[--danger] text-sm">{error}</p>}
           <div className="flex justify-end gap-2.5 mt-2">
             <button type="button" disabled={busy} onClick={onClose} className="px-3.5 py-1.5 border border-[--border] rounded text-sm font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">

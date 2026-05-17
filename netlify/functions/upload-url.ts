@@ -2,7 +2,7 @@ import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { parseUsers } from '../lib/users.js'
+import { isValidSlug } from '../lib/userConfig.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
@@ -10,8 +10,7 @@ const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'i
 const SLUG_RE = /^[a-z0-9_-]{1,50}$/
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
-  const netlifyUser = requireAuth(context)
-  if (!netlifyUser) {
+  if (!requireAuth(context)) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
@@ -28,12 +27,8 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
   }
 
-  const users = parseUsers()
-  if (!users.has(slug)) {
+  if (!isValidSlug(slug)) {
     return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
-  }
-  if (netlifyUser.sub !== users.get(slug)) {
-    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   if (!ALLOWED_IMAGE_TYPES.has(contentType as string)) {

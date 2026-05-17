@@ -1,4 +1,4 @@
-import type { ClothingItem, SavePayload } from './types'
+import type { ClothingItem, SavePayload, UserConfig } from './types'
 
 const BASE = '/.netlify/functions'
 
@@ -76,6 +76,35 @@ async function resizeImage(file: File, maxDim = 1500): Promise<File> {
   return new File([blob], 'image.jpg', { type: 'image/jpeg' })
 }
 
+export async function fetchClosets(): Promise<string[]> {
+  const res = await fetch(`${BASE}/closets`)
+  if (!res.ok) throw new Error('Failed to fetch closets')
+  const { slugs } = await res.json() as { slugs: string[] }
+  return slugs
+}
+
+export async function fetchConfig(slug: string): Promise<UserConfig> {
+  const res = await fetch(`${BASE}/config?slug=${encodeURIComponent(slug)}`)
+  if (!res.ok) throw new Error('Failed to fetch config')
+  return res.json() as Promise<UserConfig>
+}
+
+export async function getOwnConfig(token: string): Promise<UserConfig> {
+  const res = await fetch(`${BASE}/config`, { headers: authHeaders(token) })
+  if (!res.ok) throw new Error('Failed to fetch own config')
+  return res.json() as Promise<UserConfig>
+}
+
+export async function updateCategories(categories: string[], token: string): Promise<UserConfig> {
+  const res = await fetch(`${BASE}/config`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ categories }),
+  })
+  if (!res.ok) throw new Error('Failed to update categories')
+  return res.json() as Promise<UserConfig>
+}
+
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
   if (!token) throw new Error('Not authenticated')
   const compressed = await resizeImage(file)
@@ -92,11 +121,3 @@ export async function removeBackground(file: File, slug: string, token: string):
   return new File([blob], 'image.webp', { type: 'image/webp' })
 }
 
-export async function getMySlug(token: string): Promise<string> {
-  const res = await fetch(`${BASE}/whoami`, {
-    headers: authHeaders(token),
-  })
-  if (!res.ok) throw new Error('Failed to identify user')
-  const { slug } = await res.json() as { slug: string }
-  return slug
-}
