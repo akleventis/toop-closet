@@ -34,11 +34,22 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   formData.append('format', 'webp')
   formData.append('quality', '85')
 
-  const res = await fetch(`${withoutbgUrl}/api/remove-background`, {
-    method: 'POST',
-    headers: { 'X-Withoutbg-Secret': withoutbgSecret },
-    body: formData,
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20_000)
+
+  let res: Response
+  try {
+    res = await fetch(`${withoutbgUrl}/api/remove-background`, {
+      method: 'POST',
+      headers: { 'X-Withoutbg-Secret': withoutbgSecret },
+      body: formData,
+      signal: controller.signal,
+    })
+  } catch {
+    clearTimeout(timeout)
+    return { statusCode: 504, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal timed out' }) }
+  }
+  clearTimeout(timeout)
 
   if (!res.ok) {
     return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal failed' }) }

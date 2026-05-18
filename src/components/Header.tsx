@@ -8,13 +8,12 @@ type Props = {
   slug: string
   closets: UserCloset[]
   user: User | null
-  closetName?: string
   onLogin: () => void
   onLogout: () => void
   onCreateCloset?: (name: string) => Promise<string>
 }
 
-export default function Header({ slug, closets, user, closetName, onLogin, onLogout, onCreateCloset }: Props) {
+export default function Header({ slug, closets, user, onLogin, onLogout, onCreateCloset }: Props) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
@@ -49,9 +48,9 @@ export default function Header({ slug, closets, user, closetName, onLogin, onLog
               <Link
                 key={c.slug}
                 to={`/${c.slug}`}
-                className={`text-sm tracking-wide transition-colors ${isActive ? 'text-[--text] font-semibold' : 'text-[--muted] hover:text-[--text]'}`}
+                className={`text-sm font-semibold tracking-wide transition-colors ${isActive ? 'text-[--text]' : 'text-[--muted] hover:text-[--text]'}`}
               >
-                {isActive ? (closetName ?? label) : label}
+                {label}
               </Link>
             )
           })}

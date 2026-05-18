@@ -1,4 +1,4 @@
-import type { ClothingItem, SavePayload, UserConfig, OwnProfile } from './types'
+import type { ClothingItem, SavePayload, UserConfig, UserCloset, OwnProfile } from './types'
 
 const BASE = '/.netlify/functions'
 
@@ -74,6 +74,15 @@ async function resizeImage(file: File, maxDim = 1500): Promise<File> {
     canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85)
   )
   return new File([blob], 'image.jpg', { type: 'image/jpeg' })
+}
+
+export async function fetchClosets(): Promise<UserCloset[]> {
+  const res = await fetch(`${BASE}/closets`)
+  if (!res.ok) throw new Error('Failed to fetch closets')
+  const data = await res.json() as { closets?: UserCloset[]; slugs?: string[] }
+  if (data.closets) return data.closets
+  // backwards compat
+  return (data.slugs ?? []).map(s => ({ slug: s }))
 }
 
 export async function fetchConfig(slug: string): Promise<UserConfig> {

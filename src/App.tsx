@@ -11,7 +11,7 @@ import { DEFAULT_CATEGORIES } from './constants'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
-  fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
+  fetchClosets, fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
 } from './api'
 import type { ClothingItem, ModalState, SavePayload, UserCloset } from './types'
 
@@ -28,6 +28,7 @@ export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(IS_DEV ? DEV_USER : netlifyIdentity.currentUser())
+  const [allClosets, setAllClosets] = useState<UserCloset[]>([])
   const [userClosets, setUserClosets] = useState<UserCloset[]>([])
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
   const [items, setItems] = useState<ClothingItem[]>([])
@@ -47,6 +48,11 @@ export default function App() {
 
   const token = user?.token?.access_token ?? ''
   const isOwner = !!user && userClosets.some(c => c.slug === slug)
+
+  // load all closets publicly for nav display
+  useEffect(() => {
+    fetchClosets().then(setAllClosets).catch(() => {})
+  }, [])
 
   // resolve own closets on mount if already logged in
   useEffect(() => {
@@ -162,7 +168,9 @@ export default function App() {
 
   const handleCreateCloset = async (name: string): Promise<string> => {
     const config = await createCloset(name, token)
-    setUserClosets(prev => [...prev, { slug: config.slug, name: config.name }])
+    const entry = { slug: config.slug, name: config.name }
+    setUserClosets(prev => [...prev, entry])
+    setAllClosets(prev => [...prev, entry])
     return config.slug
   }
 
@@ -174,6 +182,7 @@ export default function App() {
       const config = await updateClosetName(renameValue.trim(), slug, token)
       setClosetName(config.name)
       setUserClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
+      setAllClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setRenamingCloset(false)
     } finally {
       setRenameLoading(false)
@@ -187,6 +196,7 @@ export default function App() {
       await deleteCloset(slug, token)
       const remaining = userClosets.filter(c => c.slug !== slug)
       setUserClosets(remaining)
+      setAllClosets(prev => prev.filter(c => c.slug !== slug))
       navigate(remaining.length > 0 ? `/${remaining[0].slug}` : '/')
     } finally {
       setDeleteClosetLoading(false)
@@ -205,7 +215,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={userClosets} user={user} closetName={closetName} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
+      <Header slug={slug} closets={allClosets} user={user} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}

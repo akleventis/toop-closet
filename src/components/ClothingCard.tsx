@@ -38,7 +38,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
             <img
               src={item.imageUrl}
               alt={item.name}
-              className="w-full h-full object-cover cursor-zoom-in"
+              className="w-full h-full object-contain cursor-zoom-in"
               onClick={isProcessing ? undefined : () => setLightbox(true)}
             />
             {isProcessing && (
