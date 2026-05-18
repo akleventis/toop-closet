@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 declare module 'netlify-identity-widget' {
   export interface Token {
     access_token: string

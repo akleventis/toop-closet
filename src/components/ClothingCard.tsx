@@ -14,7 +14,6 @@ type Props = {
 
 export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], onEdit, onDelete, onTransfer }: Props) {
   const [lightbox, setLightbox] = useState(false)
-  const [expanded, setExpanded] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferring, setTransferring] = useState(false)
 
@@ -56,24 +55,14 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           <div className="flex items-center justify-center h-full text-[--muted] text-xs">No photo</div>
         )}
       </div>
-      <div
-        className="p-3 flex flex-col gap-1.5 flex-1 cursor-pointer"
-        onClick={() => setExpanded(e => !e)}
-      >
+      <div className="p-3 flex flex-col gap-1.5 flex-1">
         <div className="flex items-start justify-between gap-1">
           <div className="font-semibold text-sm">{item.name}</div>
-          {isOwner && (
-            <div onClick={e => e.stopPropagation()}>
-              <Menu items={menuItems} />
-            </div>
-          )}
+          {isOwner && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[--border] text-[--muted] uppercase tracking-[0.05em]">
           {item.category}
         </span>
-        {expanded && item.notes && (
-          <p className="text-xs text-[--muted] mt-0.5">{item.notes}</p>
-        )}
         {showTransfer && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(target => (
@@ -95,7 +84,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
 
       {lightbox && (
         <div
-          className="fixed inset-0 bg-black/85 flex items-center justify-center z-[200] p-6 cursor-zoom-out"
+          className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-[200] p-6 cursor-zoom-out gap-3"
           onClick={() => setLightbox(false)}
         >
           <img
@@ -103,6 +92,9 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
             alt={item.name}
             className="max-w-full max-h-full object-contain rounded"
           />
+          {item.notes && (
+            <p className="text-white/70 text-sm">{item.notes}</p>
+          )}
         </div>
       )}
     </div>

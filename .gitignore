@@ -26,8 +26,6 @@ dist-ssr
 .env.local
 .env
 .netlify
-plan.md
 CLAUDE.md
 .claude
-SETUP.md
-roadmap.txt
+/docs

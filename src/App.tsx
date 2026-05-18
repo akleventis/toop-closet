@@ -21,7 +21,7 @@ const DEV_TOKEN = 'dev-bypass'
 const DEV_USER = { token: { access_token: DEV_TOKEN } } as unknown as User
 
 if (!IS_DEV) {
-  netlifyIdentity.init({ APIUrl: 'https://toop-closet.netlify.app/.netlify/identity' })
+  netlifyIdentity.init({ APIUrl: 'https://closet.tooper.io/.netlify/identity' })
 }
 
 export default function App() {
@@ -85,8 +85,11 @@ export default function App() {
   useEffect(() => {
     if (!slug) return
     const controller = new AbortController()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems([])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory(ALL)
     fetchItems(slug, controller.signal)
       .then(data => { setItems(data); setLoading(false) })
