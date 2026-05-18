@@ -147,11 +147,12 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           <img
             src={images[imgIndex]}
             alt={item.name}
-            className="max-w-full max-h-full object-contain rounded"
+            className="max-w-full object-contain rounded"
+            style={{ maxHeight: multi ? 'calc(100vh - 7rem)' : 'calc(100vh - 4rem)' }}
           />
           {item.notes && <p className="text-white/70 text-sm">{item.notes}</p>}
           {multi && (
-            <div className="flex" onClick={e => e.stopPropagation()}>
+            <div className="absolute bottom-5 left-0 right-0 flex justify-center" onClick={e => e.stopPropagation()}>
               {images.map((_, i) => (
                 <button
                   key={i}
