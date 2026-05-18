@@ -62,7 +62,7 @@ export async function uploadImage(file: File, slug: string, token: string): Prom
   return imageUrl
 }
 
-async function resizeImage(file: File, maxDim = 1500): Promise<File> {
+export async function resizeImage(file: File, maxDim = 1500): Promise<File> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')

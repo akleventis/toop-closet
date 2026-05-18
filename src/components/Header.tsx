@@ -57,35 +57,34 @@ export default function Header({ slug, closets, user, onLogin, onLogout, onCreat
     <>
       <header className="px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
         <div className="flex items-center justify-between gap-4">
-          <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none">
-            {closets.map(c => {
-              const isActive = c.slug === slug
-              const label = c.name ?? c.slug
-              return (
-                <span key={c.slug} className="flex items-center">
+          <div className="flex items-center gap-1 min-w-0">
+            <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none">
+              {closets.map(c => {
+                const isActive = c.slug === slug
+                const label = c.name ?? c.slug
+                return (
                   <Link
+                    key={c.slug}
                     to={`/${c.slug}`}
-                    className={`text-xs tracking-wide transition-colors ${isActive ? 'text-[--text] underline underline-offset-4' : 'text-[--muted] hover:text-[--text]'}`}
+                    className={`text-xs tracking-wide transition-colors shrink-0 ${isActive ? 'text-[--text] underline underline-offset-4' : 'text-[--muted] hover:text-[--text]'}`}
                   >
                     {label}
                   </Link>
-                  {isActive && closetMenuItems.length > 0 && (
-                    <Menu items={closetMenuItems} align="left" />
-                  )}
-                </span>
-              )
-            })}
+                )
+              })}
 
-            {onCreateCloset && (
-              <button
-                onClick={() => setCreating(true)}
-                className="text-[--muted] hover:text-[--text] transition-colors leading-none w-8 h-8 flex items-center justify-center text-base"
-                title="New closet"
-              >
-                +
-              </button>
-            )}
-          </nav>
+              {onCreateCloset && (
+                <button
+                  onClick={() => setCreating(true)}
+                  className="text-[--muted] hover:text-[--text] transition-colors leading-none w-8 h-8 flex items-center justify-center text-base shrink-0"
+                  title="New closet"
+                >
+                  +
+                </button>
+              )}
+            </nav>
+            {closetMenuItems.length > 0 && <Menu items={closetMenuItems} align="left" />}
+          </div>
 
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
@@ -117,6 +116,7 @@ export default function Header({ slug, closets, user, onLogin, onLogout, onCreat
               placeholder="Closet name"
               maxLength={60}
               className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              style={{ fontSize: '16px' }}
               disabled={createLoading}
             />
             {createError && <p className="text-[--danger] text-sm">{createError}</p>}

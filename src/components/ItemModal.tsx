@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { uploadImage } from '../api'
+import { uploadImage, resizeImage } from '../api'
 import type { ModalState, SavePayload, ClothingItem } from '../types'
 import { getImages } from '../types'
 
@@ -96,9 +96,10 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
           uploadedUrls.push(slot.url)
           bgFiles.push(null)
         } else {
-          const url = await uploadImage(slot.file, slug, token)
+          const resized = await resizeImage(slot.file)
+          const url = await uploadImage(resized, slug, token)
           uploadedUrls.push(url)
-          bgFiles.push(removeBg ? slot.file : null)
+          bgFiles.push(removeBg ? resized : null)
         }
       }
       const imageUrl = uploadedUrls[0] ?? ''

@@ -307,6 +307,7 @@ export default function App() {
               onChange={e => setRenameValue(e.target.value)}
               maxLength={60}
               className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              style={{ fontSize: '16px' }}
               disabled={renameLoading}
             />
             <div className="flex gap-2 justify-end">

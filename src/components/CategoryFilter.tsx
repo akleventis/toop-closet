@@ -106,6 +106,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
               placeholder="Category name"
               maxLength={40}
               className="px-2.5 py-1.5 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              style={{ fontSize: '16px' }}
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowAddModal(false)} className="px-3 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">Cancel</button>
@@ -128,6 +129,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
                   onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setShowRenameModal(false) }}
                   maxLength={40}
                   className={`px-2 py-1.5 border rounded text-xs bg-[--bg] text-[--text] focus:outline-none w-full transition-colors ${editValues[cat] && editValues[cat] !== cat ? 'border-[--text]' : 'border-[--border]'}`}
+                  style={{ fontSize: '16px' }}
                 />
               ))}
             </div>
