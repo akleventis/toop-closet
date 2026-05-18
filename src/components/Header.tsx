@@ -57,7 +57,7 @@ export default function Header({ slug, closets, user, onLogin, onLogout, onCreat
     <>
       <header className="px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
         <div className="flex items-center justify-between gap-4">
-          <nav className="flex items-center gap-3 flex-wrap">
+          <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none">
             {closets.map(c => {
               const isActive = c.slug === slug
               const label = c.name ?? c.slug
@@ -65,12 +65,12 @@ export default function Header({ slug, closets, user, onLogin, onLogout, onCreat
                 <span key={c.slug} className="flex items-center">
                   <Link
                     to={`/${c.slug}`}
-                    className={`text-sm tracking-wide transition-colors ${isActive ? 'text-[--text] underline underline-offset-4' : 'text-[--muted] hover:text-[--text]'}`}
+                    className={`text-xs tracking-wide transition-colors ${isActive ? 'text-[--text] underline underline-offset-4' : 'text-[--muted] hover:text-[--text]'}`}
                   >
                     {label}
                   </Link>
                   {isActive && closetMenuItems.length > 0 && (
-                    <Menu items={closetMenuItems} />
+                    <Menu items={closetMenuItems} align="left" />
                   )}
                 </span>
               )
@@ -89,11 +89,11 @@ export default function Header({ slug, closets, user, onLogin, onLogout, onCreat
 
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
-              <button onClick={onLogout} className="px-2.5 py-0.5 text-sm text-[--muted] hover:text-[--text] transition-colors">
+              <button onClick={onLogout} className="px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors">
                 Log out
               </button>
             ) : (
-              <button onClick={onLogin} className="px-2.5 py-0.5 text-sm text-[--muted] hover:text-[--text] transition-colors">
+              <button onClick={onLogin} className="px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors">
                 Log in
               </button>
             )}

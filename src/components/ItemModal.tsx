@@ -15,8 +15,8 @@ type FormState = {
   notes: string
 }
 
-const field = 'w-full px-2.5 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none focus:ring-1 focus:ring-[--text]'
-const label = 'flex flex-col gap-1 text-sm font-medium text-[--muted]'
+const field = 'w-full px-2 py-1.5 border border-[--border] rounded text-xs bg-[--bg] text-[--text] focus:outline-none focus:ring-1 focus:ring-[--text]'
+const label = 'flex flex-col gap-1 text-xs font-medium text-[--muted]'
 
 type Props = {
   modal: ModalState
@@ -102,10 +102,9 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
         }
       }
       const imageUrl = uploadedUrls[0] ?? ''
-      const imageUrls = uploadedUrls.length > 1 ? uploadedUrls : undefined
       const hasBgWork = bgFiles.some(f => f !== null)
       await onSave(
-        { ...form, imageUrl, ...(imageUrls ? { imageUrls } : {}) },
+        { ...form, imageUrl, imageUrls: uploadedUrls },
         hasBgWork ? bgFiles : undefined,
       )
     } catch (err) {
@@ -121,13 +120,13 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
       onClick={busy ? undefined : onClose}
     >
       <div
-        className="bg-[--bg] border border-[--border] rounded-lg p-7 w-full max-w-[460px] max-h-[90svh] overflow-y-auto"
+        className="bg-[--bg] border border-[--border] rounded-lg p-5 w-full max-w-[420px] max-h-[90svh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="m-0 mb-5 text-base font-semibold">
+        <h2 className="m-0 mb-3 text-sm font-semibold">
           {modal.mode === 'edit' ? 'Edit item' : 'Add item'}
         </h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
           <label className={label}>
             Name
             <input type="text" required value={form.name} onChange={set('name')} className={field} />
@@ -139,21 +138,21 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
             </select>
           </label>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-[--muted]">Photos</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-[--muted]">Photos</span>
             {images.length > 0 && (
               <div className="flex gap-2 flex-wrap">
                 {images.map((slot, i) => {
                   const src = slot.kind === 'url' ? slot.url : slot.preview
                   return (
                     <div key={i} className="relative">
-                      <img src={src} alt="" className="w-20 h-20 object-cover rounded border border-[--border]" />
+                      <img src={src} alt="" className="w-16 h-16 object-cover rounded border border-[--border]" />
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
                         className="absolute -top-2 -right-2 w-8 h-8 flex items-center justify-center"
                       >
-                        <span className="w-5 h-5 bg-[--text] text-[--bg] rounded-full text-xs flex items-center justify-center leading-none">×</span>
+                        <span className="w-4 h-4 bg-[--text] text-[--bg] rounded-full text-[10px] flex items-center justify-center leading-none">×</span>
                       </button>
                       {images.length > 1 && (
                         <div className="flex gap-0.5 mt-1">
@@ -180,9 +179,9 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="self-start px-3 py-1.5 border border-dashed border-[--border] rounded text-sm text-[--muted] hover:bg-[--bg-subtle] transition-colors"
+                className="self-start px-2.5 py-1 border border-dashed border-[--border] rounded text-xs text-[--muted] hover:bg-[--bg-subtle] transition-colors"
               >
-                + Add photo{images.length === 0 ? '' : ' (up to ' + (4 - images.length) + ' more)'}
+                + Add photo{images.length === 0 ? '' : ' (' + (4 - images.length) + ' left)'}
               </button>
             )}
             <input
@@ -207,13 +206,13 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                 className={field}
               />
               {form.notes.length > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[--muted]">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[--muted]">
                   {50 - form.notes.length}
                 </span>
               )}
             </div>
           </label>
-          <label className="flex items-center gap-2 text-sm text-[--muted] cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-[--muted] cursor-pointer select-none">
             <input
               type="checkbox"
               checked={removeBg}
@@ -225,12 +224,12 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
             />
             Remove background
           </label>
-          {error && <p className="text-[--danger] text-sm">{error}</p>}
-          <div className="flex justify-end gap-2.5 mt-2">
-            <button type="button" disabled={busy} onClick={onClose} className="px-3.5 py-1.5 border border-[--border] rounded text-sm font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+          {error && <p className="text-[--danger] text-xs">{error}</p>}
+          <div className="flex justify-end gap-2 mt-1">
+            <button type="button" disabled={busy} onClick={onClose} className="px-3 py-1 border border-[--border] rounded text-xs font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
               Cancel
             </button>
-            <button type="submit" disabled={busy} className="px-3.5 py-1.5 border border-[--border] rounded bg-[--text] text-[--bg] text-sm font-medium hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed">
+            <button type="submit" disabled={busy} className="px-3 py-1 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed">
               {busy ? 'Saving…' : 'Save'}
             </button>
           </div>

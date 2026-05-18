@@ -37,7 +37,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
     setRenameTarget(null)
   }
 
-  const pillBase = 'px-2.5 py-0.5 rounded text-sm transition-colors shrink-0'
+  const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
   const activePill = `${pillBase} text-[--text] underline underline-offset-4`
   const inactivePill = `${pillBase} text-[--muted] hover:text-[--text] hover:bg-[--bg-subtle]`
 
@@ -52,7 +52,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
   return (
     <div className="my-5">
       <div className="flex items-center gap-1">
-        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5 flex-1">
+        <div className="flex gap-1 overflow-x-auto scrollbar-none pb-0.5 flex-1">
           {categories.map(cat => (
             <span key={cat} className="flex items-center shrink-0 gap-0.5">
               <button
