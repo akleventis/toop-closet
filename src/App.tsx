@@ -11,9 +11,9 @@ import { DEFAULT_CATEGORIES } from './constants'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
-  fetchClosets, fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
+  fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
 } from './api'
-import type { ClothingItem, ModalState, SavePayload } from './types'
+import type { ClothingItem, ModalState, SavePayload, UserCloset } from './types'
 
 const ALL = 'All'
 const IS_DEV = import.meta.env.DEV
@@ -28,8 +28,7 @@ export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(IS_DEV ? DEV_USER : netlifyIdentity.currentUser())
-  const [userSlugs, setUserSlugs] = useState<string[]>([])
-  const [closets, setClosets] = useState<string[]>([])
+  const [userClosets, setUserClosets] = useState<UserCloset[]>([])
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
   const [items, setItems] = useState<ClothingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,22 +46,17 @@ export default function App() {
   const [deleteClosetLoading, setDeleteClosetLoading] = useState(false)
 
   const token = user?.token?.access_token ?? ''
-  const isOwner = !!user && userSlugs.includes(slug ?? '')
+  const isOwner = !!user && userClosets.some(c => c.slug === slug)
 
-  // fetch closet list once for nav
-  useEffect(() => {
-    fetchClosets().then(setClosets).catch(() => {})
-  }, [])
-
-  // resolve own slugs on mount if already logged in
+  // resolve own closets on mount if already logged in
   useEffect(() => {
     if (IS_DEV) {
-      getOwnProfile(DEV_TOKEN).then(p => setUserSlugs(p.slugs)).catch(() => {})
+      getOwnProfile(DEV_TOKEN).then(p => setUserClosets(p.closets)).catch(() => {})
       return
     }
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
-    if (currentUser && t) getOwnProfile(t).then(p => setUserSlugs(p.slugs)).catch(() => {})
+    if (currentUser && t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -71,9 +65,9 @@ export default function App() {
       setUser(u)
       netlifyIdentity.close()
       const t = u.token?.access_token ?? ''
-      if (t) getOwnProfile(t).then(p => setUserSlugs(p.slugs)).catch(() => {})
+      if (t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(() => {})
     }
-    const onLogout = () => { setUser(null); setUserSlugs([]); setModal(null) }
+    const onLogout = () => { setUser(null); setUserClosets([]); setModal(null) }
     netlifyIdentity.on('login', onLogin)
     netlifyIdentity.on('logout', onLogout)
     return () => {
@@ -166,10 +160,10 @@ export default function App() {
     if (category === name) setCategory(ALL)
   }
 
-  const handleCreateCloset = async (newSlug: string) => {
-    await createCloset(newSlug, token)
-    setUserSlugs(prev => [...prev, newSlug])
-    setClosets(prev => [...prev, newSlug])
+  const handleCreateCloset = async (name: string): Promise<string> => {
+    const config = await createCloset(name, token)
+    setUserClosets(prev => [...prev, { slug: config.slug, name: config.name }])
+    return config.slug
   }
 
   const handleRenameCloset = async (e: FormEvent) => {
@@ -179,6 +173,7 @@ export default function App() {
     try {
       const config = await updateClosetName(renameValue.trim(), slug, token)
       setClosetName(config.name)
+      setUserClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setRenamingCloset(false)
     } finally {
       setRenameLoading(false)
@@ -190,10 +185,9 @@ export default function App() {
     setDeleteClosetLoading(true)
     try {
       await deleteCloset(slug, token)
-      setUserSlugs(prev => prev.filter(s => s !== slug))
-      setClosets(prev => prev.filter(s => s !== slug))
-      const remaining = closets.filter(s => s !== slug)
-      navigate(remaining.length > 0 ? `/${remaining[0]}` : '/')
+      const remaining = userClosets.filter(c => c.slug !== slug)
+      setUserClosets(remaining)
+      navigate(remaining.length > 0 ? `/${remaining[0].slug}` : '/')
     } finally {
       setDeleteClosetLoading(false)
       setConfirmingDelete(false)
@@ -207,9 +201,11 @@ export default function App() {
     setItems(prev => prev.filter(i => i.id !== item.id))
   }
 
+  const otherClosets = isOwner ? userClosets.filter(c => c.slug !== slug) : []
+
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={closets} user={user} closetName={closetName} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
+      <Header slug={slug} closets={userClosets} user={user} closetName={closetName} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}
@@ -265,7 +261,7 @@ export default function App() {
                 item={item}
                 isOwner={isOwner}
                 isProcessing={processingBg.has(item.id)}
-                otherClosets={isOwner ? userSlugs.filter(s => s !== slug) : []}
+                otherClosets={otherClosets}
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
                 onTransfer={isOwner ? handleTransferItem : undefined}

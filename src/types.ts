@@ -4,8 +4,10 @@ export type UserConfig = {
   name?: string
 }
 
+export type UserCloset = { slug: string; name?: string }
+
 export type OwnProfile = {
-  slugs: string[]
+  closets: UserCloset[]
 }
 
 export type ClothingItem = {

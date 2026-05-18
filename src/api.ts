@@ -76,13 +76,6 @@ async function resizeImage(file: File, maxDim = 1500): Promise<File> {
   return new File([blob], 'image.jpg', { type: 'image/jpeg' })
 }
 
-export async function fetchClosets(): Promise<string[]> {
-  const res = await fetch(`${BASE}/closets`)
-  if (!res.ok) throw new Error('Failed to fetch closets')
-  const { slugs } = await res.json() as { slugs: string[] }
-  return slugs
-}
-
 export async function fetchConfig(slug: string): Promise<UserConfig> {
   const res = await fetch(`${BASE}/config?slug=${encodeURIComponent(slug)}`)
   if (!res.ok) throw new Error('Failed to fetch config')
@@ -92,14 +85,17 @@ export async function fetchConfig(slug: string): Promise<UserConfig> {
 export async function getOwnProfile(token: string): Promise<OwnProfile> {
   const res = await fetch(`${BASE}/config`, { headers: authHeaders(token) })
   if (!res.ok) throw new Error('Failed to fetch own profile')
-  return res.json() as Promise<OwnProfile>
+  const data = await res.json() as OwnProfile | { slugs: string[] }
+  // backwards compat: old API returned { slugs }
+  if ('slugs' in data) return { closets: (data.slugs as string[]).map((s: string) => ({ slug: s })) }
+  return data as OwnProfile
 }
 
-export async function createCloset(slug: string, token: string): Promise<UserConfig> {
+export async function createCloset(name: string, token: string): Promise<UserConfig> {
   const res = await fetch(`${BASE}/config`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ slug }),
+    body: JSON.stringify({ name }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { error?: string }

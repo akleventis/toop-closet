@@ -2,20 +2,21 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from 'netlify-identity-widget'
+import type { UserCloset } from '../types'
 
 type Props = {
   slug: string
-  closets: string[]
+  closets: UserCloset[]
   user: User | null
   closetName?: string
   onLogin: () => void
   onLogout: () => void
-  onCreateCloset?: (slug: string) => Promise<void>
+  onCreateCloset?: (name: string) => Promise<string>
 }
 
 export default function Header({ slug, closets, user, closetName, onLogin, onLogout, onCreateCloset }: Props) {
   const [creating, setCreating] = useState(false)
-  const [newSlug, setNewSlug] = useState('')
+  const [newName, setNewName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [createLoading, setCreateLoading] = useState(false)
   const navigate = useNavigate()
@@ -26,10 +27,10 @@ export default function Header({ slug, closets, user, closetName, onLogin, onLog
     setCreateLoading(true)
     setCreateError(null)
     try {
-      await onCreateCloset(newSlug.trim())
-      navigate(`/${newSlug.trim()}`)
+      const generatedSlug = await onCreateCloset(newName.trim())
+      navigate(`/${generatedSlug}`)
       setCreating(false)
-      setNewSlug('')
+      setNewName('')
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create closet')
     } finally {
@@ -41,15 +42,16 @@ export default function Header({ slug, closets, user, closetName, onLogin, onLog
     <header className="px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
       <div className="flex items-center justify-between gap-4">
         <nav className="flex items-center gap-4 flex-wrap">
-          {closets.map(s => {
-            const isActive = s === slug
+          {closets.map(c => {
+            const isActive = c.slug === slug
+            const label = c.name ?? c.slug
             return (
               <Link
-                key={s}
-                to={`/${s}`}
-                className={`text-sm lowercase tracking-wide transition-colors ${isActive ? 'text-[--text] font-semibold' : 'text-[--muted] hover:text-[--text]'}`}
+                key={c.slug}
+                to={`/${c.slug}`}
+                className={`text-sm tracking-wide transition-colors ${isActive ? 'text-[--text] font-semibold' : 'text-[--muted] hover:text-[--text]'}`}
               >
-                {isActive ? (closetName ?? s) : s}
+                {isActive ? (closetName ?? label) : label}
               </Link>
             )
           })}
@@ -67,16 +69,17 @@ export default function Header({ slug, closets, user, closetName, onLogin, onLog
             <form onSubmit={handleCreateSubmit} className="flex items-center gap-2">
               <input
                 autoFocus
-                value={newSlug}
-                onChange={e => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                placeholder="closet-name"
-                className="px-2 py-1 border border-[--border] rounded text-sm bg-[--bg] text-[--text] w-32 focus:outline-none"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder="Closet name"
+                maxLength={60}
+                className="px-2 py-1 border border-[--border] rounded text-sm bg-[--bg] text-[--text] w-36 focus:outline-none"
                 disabled={createLoading}
               />
-              <button type="submit" disabled={createLoading || !newSlug.trim()} className="px-2.5 py-1 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              <button type="submit" disabled={createLoading || !newName.trim()} className="px-2.5 py-1 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
                 {createLoading ? '…' : 'Create'}
               </button>
-              <button type="button" onClick={() => { setCreating(false); setNewSlug(''); setCreateError(null) }} className="px-2.5 py-1 border border-[--border] rounded text-sm hover:bg-[--bg-subtle]">
+              <button type="button" onClick={() => { setCreating(false); setNewName(''); setCreateError(null) }} className="px-2.5 py-1 border border-[--border] rounded text-sm hover:bg-[--bg-subtle]">
                 Cancel
               </button>
               {createError && <span className="text-[--danger] text-sm">{createError}</span>}

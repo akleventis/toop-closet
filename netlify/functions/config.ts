@@ -3,7 +3,7 @@ import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import {
   allSlugs, readClosetConfig, writeClosetConfig,
-  readUserIndex, writeUserIndex,
+  readUserIndex, writeUserIndex, generateSlug,
 } from '../lib/userConfig.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
@@ -15,7 +15,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   const method = event.httpMethod
   const slug = event.queryStringParameters?.slug
 
-  // Public: GET ?slug → categories for any closet
+  // Public: GET ?slug → categories + name for any closet
   if (method === 'GET' && slug) {
     if (!SLUG_RE.test(slug)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid slug' }) }
@@ -27,7 +27,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return {
       statusCode: 200,
       headers: JSON_HEADERS,
-      body: JSON.stringify({ slug: config.slug, categories: config.categories }),
+      body: JSON.stringify({ slug: config.slug, categories: config.categories, name: config.name }),
     }
   }
 
@@ -36,26 +36,26 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
-  // Auth: GET (no slug) → own closets; lazy-migrates unclaimed configs on first login
+  // Auth: GET (no slug) → own closets with names; lazy-migrates unclaimed configs on first login
   if (method === 'GET') {
-    let slugs = await readUserIndex(netlifyUser.sub)
+    let closets = await readUserIndex(netlifyUser.sub)
 
-    if (!slugs) {
+    if (!closets) {
       const all = await allSlugs()
-      const owned: string[] = []
+      const owned: { slug: string; name?: string }[] = []
       await Promise.all(all.map(async s => {
         const cfg = await readClosetConfig(s)
         if (!cfg) return
         if (!cfg.ownerEmail || cfg.ownerEmail === netlifyUser.email) {
-          owned.push(s)
+          owned.push({ slug: s, name: cfg.name })
           if (!cfg.ownerEmail) await writeClosetConfig({ ...cfg, ownerEmail: netlifyUser.email })
         }
       }))
-      slugs = owned
-      await writeUserIndex(netlifyUser.sub, slugs)
+      closets = owned
+      await writeUserIndex(netlifyUser.sub, closets)
     }
 
-    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ slugs }) }
+    return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ closets }) }
   }
 
   let body: Record<string, unknown>
@@ -65,27 +65,29 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid JSON' }) }
   }
 
-  // Auth: POST { slug } → create new closet
+  // Auth: POST { name? } → create new closet with auto-generated slug
   if (method === 'POST') {
-    const newSlug = body.slug as string | undefined
-    if (!newSlug || !SLUG_RE.test(newSlug)) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid slug — use lowercase letters, numbers, hyphens, underscores' }) }
-    }
-    const existing = await readClosetConfig(newSlug)
-    if (existing) {
-      return { statusCode: 409, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Slug already taken' }) }
+    const name = body.name as string | undefined
+    if (name !== undefined && (typeof name !== 'string' || name.trim().length === 0 || name.length > 60)) {
+      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a non-empty string (max 60 chars)' }) }
     }
 
-    const config = { slug: newSlug, ownerEmail: netlifyUser.email, categories: DEFAULT_CATEGORIES }
+    const newSlug = await generateSlug()
+    const config = {
+      slug: newSlug,
+      ownerEmail: netlifyUser.email,
+      categories: DEFAULT_CATEGORIES,
+      ...(name ? { name: name.trim() } : {}),
+    }
     await writeClosetConfig(config)
 
-    const currentSlugs = (await readUserIndex(netlifyUser.sub)) ?? []
-    await writeUserIndex(netlifyUser.sub, [...currentSlugs, newSlug])
+    const currentClosets = (await readUserIndex(netlifyUser.sub)) ?? []
+    await writeUserIndex(netlifyUser.sub, [...currentClosets, { slug: newSlug, name: config.name }])
 
     return {
       statusCode: 201,
       headers: JSON_HEADERS,
-      body: JSON.stringify({ slug: newSlug, categories: config.categories }),
+      body: JSON.stringify({ slug: newSlug, categories: config.categories, name: config.name }),
     }
   }
 
@@ -118,6 +120,10 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
         return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a non-empty string (max 60 chars)' }) }
       }
       updated.name = name.trim()
+      // keep user index name in sync
+      const currentClosets = (await readUserIndex(netlifyUser.sub)) ?? []
+      const syncedClosets = currentClosets.map(c => c.slug === putSlug ? { ...c, name: updated.name } : c)
+      await writeUserIndex(netlifyUser.sub, syncedClosets)
     }
     await writeClosetConfig(updated)
     return {
@@ -144,8 +150,8 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: `users/${delSlug}/config.json` })),
       s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: `inventory/${delSlug}.json` })),
     ])
-    const currentSlugs = (await readUserIndex(netlifyUser.sub)) ?? []
-    await writeUserIndex(netlifyUser.sub, currentSlugs.filter(s => s !== delSlug))
+    const currentClosets = (await readUserIndex(netlifyUser.sub)) ?? []
+    await writeUserIndex(netlifyUser.sub, currentClosets.filter(c => c.slug !== delSlug))
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 

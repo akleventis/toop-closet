@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import type { ClothingItem } from '../types'
+import type { ClothingItem, UserCloset } from '../types'
 import Menu from './Menu'
 
 type Props = {
   item: ClothingItem
   isOwner: boolean
   isProcessing?: boolean
-  otherClosets?: string[]
+  otherClosets?: UserCloset[]
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
   onTransfer?: (item: ClothingItem, targetSlug: string) => Promise<void>
@@ -65,17 +65,17 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         </span>
         {showTransfer && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
-            {otherClosets.map(target => (
+            {otherClosets.map(c => (
               <button
-                key={target}
+                key={c.slug}
                 disabled={transferring}
                 onClick={async () => {
                   setTransferring(true)
-                  try { await onTransfer?.(item, target) } finally { setTransferring(false); setShowTransfer(false) }
+                  try { await onTransfer?.(item, c.slug) } finally { setTransferring(false); setShowTransfer(false) }
                 }}
                 className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
               >
-                {transferring ? '…' : `→ ${target}`}
+                {transferring ? '…' : `→ ${c.name ?? c.slug}`}
               </button>
             ))}
           </div>
