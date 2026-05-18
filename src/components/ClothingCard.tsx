@@ -110,7 +110,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           <div className="font-medium text-xs truncate">{item.name}</div>
           {isOwner && <Menu items={menuItems} />}
         </div>
-        <span className="self-start text-xs px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+        <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
         {showTransfer && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (

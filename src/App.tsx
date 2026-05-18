@@ -173,17 +173,20 @@ export default function App() {
     if (category === name) setCategory(ALL)
   }
 
-  const handleRenameCategory = async (oldName: string, newName: string) => {
-    if (!slug) return
-    const updated = categories.map(c => c === oldName ? newName : c)
+  const handleRenameCategory = async (changes: { from: string; to: string }[]) => {
+    if (!slug || changes.length === 0) return
+    const nameMap = new Map(changes.map(c => [c.from, c.to]))
+    const updated = categories.map(c => nameMap.get(c) ?? c)
     await updateCategories(updated, slug, token)
     setCategories(updated)
-    const affected = items.filter(i => i.category === oldName)
-    for (const item of affected) {
-      await updateItem({ ...item, category: newName }, slug, token)
+    for (const { from, to } of changes) {
+      const affected = items.filter(i => i.category === from)
+      for (const item of affected) {
+        await updateItem({ ...item, category: to }, slug, token)
+      }
+      setItems(prev => prev.map(i => i.category === from ? { ...i, category: to } : i))
     }
-    setItems(prev => prev.map(i => i.category === oldName ? { ...i, category: newName } : i))
-    if (category === oldName) setCategory(newName)
+    setCategory(prev => nameMap.get(prev) ?? prev)
   }
 
   const handleCreateCloset = async (name: string): Promise<string> => {

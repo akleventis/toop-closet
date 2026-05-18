@@ -9,16 +9,15 @@ type Props = {
   onAdd?: () => void
   onAddCategory?: (name: string) => void
   onRemoveCategory?: (name: string) => void
-  onRenameCategory?: (oldName: string, newName: string) => void
+  onRenameCategory?: (changes: { from: string; to: string }[]) => void
 }
 
 export default function CategoryFilter({ categories, active, onChange, onAdd, onAddCategory, onRemoveCategory, onRenameCategory }: Props) {
   const [deleteMode, setDeleteMode] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
-  const [renameTarget, setRenameTarget] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<Record<string, string>>({})
   const [newCat, setNewCat] = useState('')
-  const [editCat, setEditCat] = useState('')
 
   const handleAdd = () => {
     const name = newCat.trim()
@@ -28,16 +27,15 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
     setShowAddModal(false)
   }
 
-  const handleRename = () => {
-    if (!renameTarget) return
-    const name = editCat.trim()
-    if (!name || name === renameTarget || categories.includes(name)) return
-    onRenameCategory?.(renameTarget, name)
+  const handleRenameSave = () => {
+    const changes = renamable
+      .filter(c => editValues[c]?.trim() && editValues[c].trim() !== c)
+      .map(c => ({ from: c, to: editValues[c].trim() }))
+    onRenameCategory?.(changes)
     setShowRenameModal(false)
-    setRenameTarget(null)
   }
 
-  const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
+const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
   const activePill = `${pillBase} text-[--text] underline underline-offset-4`
   const inactivePill = `${pillBase} text-[--muted] hover:text-[--text] hover:bg-[--bg-subtle]`
 
@@ -45,7 +43,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
 
   const catMenuItems: MenuItem[] = [
     ...(onAddCategory ? [{ label: 'New tag', onClick: () => { setNewCat(''); setShowAddModal(true) } }] : []),
-    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Rename tag', onClick: () => { setRenameTarget(null); setShowRenameModal(true) } }] : []),
+    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Rename tag', onClick: () => { setEditValues(Object.fromEntries(renamable.map(c => [c, c]))); setShowRenameModal(true) } }] : []),
     ...(onRemoveCategory && renamable.length > 0 ? [{ label: 'Delete tags', onClick: () => setDeleteMode(true) }] : []),
   ]
 
@@ -118,43 +116,25 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
       )}
 
       {showRenameModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50" onClick={() => { setShowRenameModal(false); setRenameTarget(null) }}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50" onClick={() => setShowRenameModal(false)}>
           <div className="rounded-lg border border-[--border] p-5 w-full max-w-xs flex flex-col gap-3" style={{ backgroundColor: 'var(--bg)' }} onClick={e => e.stopPropagation()}>
-            {renameTarget === null ? (
-              <>
-                <p className="text-base font-semibold">Rename which tag?</p>
-                <div className="flex flex-col">
-                  {renamable.map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => { setRenameTarget(cat); setEditCat(cat) }}
-                      className="text-left px-2 py-1.5 rounded text-sm hover:bg-[--bg-subtle] transition-colors"
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex justify-end">
-                  <button onClick={() => setShowRenameModal(false)} className="px-3 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">Cancel</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-base font-semibold">Rename "{renameTarget}"</p>
+            <p className="text-sm font-semibold">Rename tags</p>
+            <div className="flex flex-col gap-2">
+              {renamable.map(cat => (
                 <input
-                  autoFocus
-                  value={editCat}
-                  onChange={e => setEditCat(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleRename(); if (e.key === 'Escape') setRenameTarget(null) }}
+                  key={cat}
+                  value={editValues[cat] ?? cat}
+                  onChange={e => setEditValues(prev => ({ ...prev, [cat]: e.target.value }))}
+                  onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setShowRenameModal(false) }}
                   maxLength={40}
-                  className="px-2.5 py-1.5 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+                  className={`px-2 py-1.5 border rounded text-xs bg-[--bg] text-[--text] focus:outline-none w-full transition-colors ${editValues[cat] && editValues[cat] !== cat ? 'border-[--text]' : 'border-[--border]'}`}
                 />
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => setRenameTarget(null)} className="px-3 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">Back</button>
-                  <button onClick={handleRename} disabled={!editCat.trim() || editCat.trim() === renameTarget || categories.includes(editCat.trim())} className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">Save</button>
-                </div>
-              </>
-            )}
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowRenameModal(false)} className="px-3 py-1 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors">Cancel</button>
+              <button onClick={handleRenameSave} className="px-3 py-1 bg-[--text] text-[--bg] rounded text-xs font-medium">Save</button>
+            </div>
           </div>
         </div>
       )}
