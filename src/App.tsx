@@ -179,7 +179,9 @@ export default function App() {
     await updateCategories(updated, slug, token)
     setCategories(updated)
     const affected = items.filter(i => i.category === oldName)
-    await Promise.all(affected.map(item => updateItem({ ...item, category: newName }, slug, token)))
+    for (const item of affected) {
+      await updateItem({ ...item, category: newName }, slug, token)
+    }
     setItems(prev => prev.map(i => i.category === oldName ? { ...i, category: newName } : i))
     if (category === oldName) setCategory(newName)
   }
@@ -261,7 +263,7 @@ export default function App() {
             {items.length === 0 ? 'No items yet.' : 'No items in this category.'}
           </p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {filtered.map(item => (
               <ClothingCard
                 key={item.id}

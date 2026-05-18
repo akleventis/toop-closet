@@ -26,6 +26,9 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const lbDidSwipe = useRef(false)
 
   useEffect(() => { setImgIndex(0) }, [item.id])
+  useEffect(() => {
+    setImgIndex(i => Math.min(i, Math.max(0, images.length - 1)))
+  }, [images.length])
 
   useEffect(() => {
     if (!lightbox) return
