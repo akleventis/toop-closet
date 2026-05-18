@@ -32,13 +32,13 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
 
   return (
     <div className="bg-[--bg-subtle] border border-[--border] rounded-lg flex flex-col">
-      <div className="w-full aspect-[4/3] overflow-hidden bg-[--border] relative rounded-t-lg">
+      <div className="w-full aspect-square overflow-hidden bg-[--border] relative rounded-t-lg">
         {item.imageUrl ? (
           <>
             <img
               src={item.imageUrl}
               alt={item.name}
-              className="w-full h-full object-contain cursor-zoom-in"
+              className="w-full h-full object-cover cursor-zoom-in"
               onClick={isProcessing ? undefined : () => setLightbox(true)}
             />
             {isProcessing && (
@@ -60,10 +60,8 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           <div className="font-semibold text-sm">{item.name}</div>
           {isOwner && <Menu items={menuItems} />}
         </div>
-        <span className="self-start text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[--border] text-[--muted] uppercase tracking-[0.05em]">
-          {item.category}
-        </span>
-        {showTransfer && (
+        <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+{showTransfer && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (
               <button

@@ -80,7 +80,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
             <input type="text" required value={form.name} onChange={set('name')} className={field} />
           </label>
           <label className={label}>
-            Category
+            Tag
             <select value={form.category} onChange={set('category')} className={field}>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -104,7 +104,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                 className={field}
               />
               {form.notes.length > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-[--muted]">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[--muted]">
                   {50 - form.notes.length}
                 </span>
               )}

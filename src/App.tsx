@@ -47,7 +47,7 @@ export default function App() {
   const [deleteClosetLoading, setDeleteClosetLoading] = useState(false)
 
   const token = user?.token?.access_token ?? ''
-  const isOwner = !!user && userClosets.some(c => c.slug === slug)
+  const isOwner = !!user
 
   // load all closets publicly for nav display
   useEffect(() => {
@@ -166,6 +166,17 @@ export default function App() {
     if (category === name) setCategory(ALL)
   }
 
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    if (!slug) return
+    const updated = categories.map(c => c === oldName ? newName : c)
+    await updateCategories(updated, slug, token)
+    setCategories(updated)
+    const affected = items.filter(i => i.category === oldName)
+    await Promise.all(affected.map(item => updateItem({ ...item, category: newName }, slug, token)))
+    setItems(prev => prev.map(i => i.category === oldName ? { ...i, category: newName } : i))
+    if (category === oldName) setCategory(newName)
+  }
+
   const handleCreateCloset = async (name: string): Promise<string> => {
     const config = await createCloset(name, token)
     const entry = { slug: config.slug, name: config.name }
@@ -215,7 +226,16 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Header slug={slug} closets={allClosets} user={user} onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()} onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()} onCreateCloset={isOwner ? handleCreateCloset : undefined} />
+      <Header
+        slug={slug}
+        closets={allClosets}
+        user={user}
+        onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()}
+        onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()}
+        onCreateCloset={isOwner ? handleCreateCloset : undefined}
+        onRenameCloset={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenamingCloset(true) } : undefined}
+        onDeleteCloset={isOwner ? () => setConfirmingDelete(true) : undefined}
+      />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}
@@ -224,38 +244,8 @@ export default function App() {
           onAdd={isOwner ? () => setModal({ mode: 'add' }) : undefined}
           onAddCategory={isOwner ? handleAddCategory : undefined}
           onRemoveCategory={isOwner ? handleRemoveCategory : undefined}
-          onRename={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenamingCloset(true) } : undefined}
-          onDelete={isOwner ? () => setConfirmingDelete(true) : undefined}
+          onRenameCategory={isOwner ? handleRenameCategory : undefined}
         />
-        {renamingCloset && (
-          <form onSubmit={handleRenameCloset} className="flex items-center gap-2 mb-4">
-            <input
-              autoFocus
-              value={renameValue}
-              onChange={e => setRenameValue(e.target.value)}
-              maxLength={60}
-              className="px-2.5 py-1.5 border border-[--border] rounded text-sm bg-[--bg] text-[--text] w-44 focus:outline-none"
-              disabled={renameLoading}
-            />
-            <button type="submit" disabled={renameLoading || !renameValue.trim()} className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
-              {renameLoading ? '…' : 'Save'}
-            </button>
-            <button type="button" onClick={() => setRenamingCloset(false)} className="px-3 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle]">
-              Cancel
-            </button>
-          </form>
-        )}
-        {confirmingDelete && (
-          <div className="flex items-center gap-3 p-3 mb-4 border border-[--danger] rounded text-sm">
-            <span className="text-[--text] flex-1">Delete <strong>{closetName ?? slug}</strong>? All items will be permanently removed.</span>
-            <button onClick={handleDeleteCloset} disabled={deleteClosetLoading} className="px-3 py-1 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40 shrink-0">
-              {deleteClosetLoading ? '…' : 'Delete'}
-            </button>
-            <button onClick={() => setConfirmingDelete(false)} className="px-3 py-1 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] shrink-0">
-              Cancel
-            </button>
-          </div>
-        )}
         {deleteError && <p className="text-[--danger] text-sm text-center mt-3">{deleteError}</p>}
         {loading ? (
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
@@ -289,6 +279,54 @@ export default function App() {
           slug={slug}
           categories={categories}
         />
+      )}
+      {renamingCloset && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setRenamingCloset(false)}>
+          <form
+            onSubmit={handleRenameCloset}
+            className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
+            style={{ backgroundColor: 'var(--bg)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-[--text]">Rename closet</h2>
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={e => setRenameValue(e.target.value)}
+              maxLength={60}
+              className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              disabled={renameLoading}
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setRenamingCloset(false)} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={renameLoading || !renameValue.trim()} className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+                {renameLoading ? '…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {confirmingDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setConfirmingDelete(false)}>
+          <div
+            className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
+            style={{ backgroundColor: 'var(--bg)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-[--text]">Delete closet</h2>
+            <p className="text-sm text-[--muted]">Delete <strong className="text-[--text]">{closetName ?? slug}</strong>? All items will be permanently removed.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmingDelete(false)} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleDeleteCloset} disabled={deleteClosetLoading} className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40">
+                {deleteClosetLoading ? '…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {toast && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[300] px-4 py-2.5 bg-[--text] text-[--bg] text-sm rounded-lg shadow-lg whitespace-nowrap">

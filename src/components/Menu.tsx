@@ -8,6 +8,7 @@ export type MenuItem = {
 
 export default function Menu({ items }: { items: MenuItem[] }) {
   const [open, setOpen] = useState(false)
+  const [hovered, setHovered] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -21,7 +22,8 @@ export default function Menu({ items }: { items: MenuItem[] }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-5 h-5 flex items-center justify-center rounded text-[--muted] hover:text-[--text] hover:bg-[--bg-subtle] transition-colors text-base leading-none"
+        className="w-8 h-8 flex items-center justify-center rounded text-[--muted] hover:text-[--text] transition-colors text-base leading-none"
+        style={{ touchAction: 'manipulation' }}
       >
         ⋮
       </button>
@@ -31,7 +33,13 @@ export default function Menu({ items }: { items: MenuItem[] }) {
             <button
               key={item.label}
               onClick={() => { setOpen(false); item.onClick() }}
-              className={`w-full text-left px-3 py-1.5 text-sm hover:bg-[--bg-subtle] transition-colors ${item.danger ? 'text-[--danger]' : 'text-[--text]'}`}
+              onMouseEnter={() => setHovered(item.label)}
+              onMouseLeave={() => setHovered(null)}
+              onTouchStart={() => setHovered(item.label)}
+              onTouchEnd={() => setHovered(null)}
+              onTouchCancel={() => setHovered(null)}
+              className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${item.danger ? 'text-[--danger]' : 'text-[--text]'}`}
+              style={{ backgroundColor: hovered === item.label ? 'var(--bg-subtle)' : undefined }}
             >
               {item.label}
             </button>
