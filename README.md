@@ -9,7 +9,7 @@ https://github.com/user-attachments/assets/800ec3e8-679f-44b8-9caf-6ffe2413268f
 ### Features
 
 **Browsing (public, no login)**
-- Browse any closet by URL slug (e.g. `/toop`)
+- Browse any closet via its unique URL
 - Filter items by tag
 - Click any photo to open a full-screen lightbox — keyboard ←/→/Escape, swipe on mobile
 - Up to 4 photos per item, swipeable in both card and lightbox views
@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/800ec3e8-679f-44b8-9caf-6ffe2413268f
 
 ### How it works
 
-Each closet is a URL slug (e.g. `/toop`). Anyone can browse; owners log in to manage items and categories. A single owner can have multiple closets and transfer items between them.
+Each closet has a unique URL. The root redirects to my personal closet. Anyone can browse; owners log in to manage items and categories. Accounts are invite-only — I can create one for someone and they get their own separate closets.
 
 **S3 layout:**
 
