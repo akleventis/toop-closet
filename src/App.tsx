@@ -113,25 +113,32 @@ export default function App() {
     setTimeout(() => setToast(null), 4000)
   }
 
-  const startBgRemoval = (item: ClothingItem, file: File) => {
+  const startBgRemoval = (item: ClothingItem, bgFiles: (File | null)[]) => {
     setProcessingBg(prev => new Set(prev).add(item.id))
-    removeBackground(file, slug, token)
-      .then(processed => uploadImage(processed, slug, token))
-      .then(imageUrl => updateItem({ ...item, imageUrl }, slug, token))
-      .then(saved => setItems(prev => prev.map(i => i.id === saved.id ? saved : i)))
+    const imageUrls = [...(item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])]
+    ;(async () => {
+      for (let i = 0; i < bgFiles.length; i++) {
+        const file = bgFiles[i]
+        if (!file || i >= imageUrls.length) continue
+        const processed = await removeBackground(file, slug, token)
+        imageUrls[i] = await uploadImage(processed, slug, token)
+      }
+      const saved = await updateItem({ ...item, imageUrl: imageUrls[0] ?? '', imageUrls }, slug, token)
+      setItems(prev => prev.map(it => it.id === saved.id ? saved : it))
+    })()
       .catch(() => showToast('Background removal failed.'))
       .finally(() => setProcessingBg(prev => { const s = new Set(prev); s.delete(item.id); return s }))
   }
 
-  const handleSave = async (item: SavePayload, bgFile?: File) => {
+  const handleSave = async (item: SavePayload, bgFiles?: (File | null)[]) => {
     if (item.id) {
       const saved = await updateItem({ ...item, id: item.id }, slug, token)
       setItems(prev => prev.map(i => i.id === saved.id ? saved : i))
-      if (bgFile) startBgRemoval(saved, bgFile)
+      if (bgFiles?.some(f => f !== null)) startBgRemoval(saved, bgFiles)
     } else {
       const saved = await createItem(item, slug, token)
       setItems(prev => [...prev, saved])
-      if (bgFile) startBgRemoval(saved, bgFile)
+      if (bgFiles?.some(f => f !== null)) startBgRemoval(saved, bgFiles)
     }
     setModal(null)
   }

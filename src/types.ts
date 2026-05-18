@@ -15,7 +15,13 @@ export type ClothingItem = {
   name: string
   category: string
   imageUrl: string
+  imageUrls?: string[]
   notes?: string
+}
+
+export function getImages(item: ClothingItem): string[] {
+  if (item.imageUrls?.length) return item.imageUrls
+  return item.imageUrl ? [item.imageUrl] : []
 }
 
 export type SavePayload = Omit<ClothingItem, 'id'> & { id?: string }

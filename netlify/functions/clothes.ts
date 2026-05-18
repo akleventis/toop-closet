@@ -9,6 +9,7 @@ type Item = {
   name: string
   category: string
   imageUrl: string
+  imageUrls?: string[]
   notes?: string
 }
 
@@ -85,11 +86,16 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!body.name || !body.category) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name and category are required' }) }
     }
+    const rawUrls = Array.isArray(body.imageUrls)
+      ? (body.imageUrls as unknown[]).map(u => safeImageUrl(u)).filter(Boolean)
+      : []
+    const imageUrls = rawUrls.length > 1 ? rawUrls : undefined
     const newItem: Item = {
       id: crypto.randomUUID(),
       name: String(body.name),
       category: String(body.category),
-      imageUrl: safeImageUrl(body.imageUrl),
+      imageUrl: rawUrls.length > 0 ? rawUrls[0] : safeImageUrl(body.imageUrl),
+      ...(imageUrls ? { imageUrls } : {}),
       ...(body.notes ? { notes: String(body.notes).slice(0, 50) } : {}),
     }
     items.push(newItem)
@@ -104,11 +110,22 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     let updated: Item | undefined
     items = items.map(i => {
       if (i.id !== body.id) return i
+      let newImageUrls: string[] | undefined = i.imageUrls
+      if (body.imageUrls !== undefined) {
+        const rawUrls = Array.isArray(body.imageUrls)
+          ? (body.imageUrls as unknown[]).map(u => safeImageUrl(u)).filter(Boolean)
+          : []
+        newImageUrls = rawUrls.length > 1 ? rawUrls : undefined
+      }
+      const newImageUrl = newImageUrls
+        ? newImageUrls[0]
+        : body.imageUrl !== undefined ? safeImageUrl(body.imageUrl) : i.imageUrl
       updated = {
         id: i.id,
         name: body.name ? String(body.name) : i.name,
         category: body.category ? String(body.category) : i.category,
-        imageUrl: body.imageUrl !== undefined ? safeImageUrl(body.imageUrl) : i.imageUrl,
+        imageUrl: newImageUrl,
+        ...(newImageUrls ? { imageUrls: newImageUrls } : {}),
         notes: body.notes !== undefined ? String(body.notes).slice(0, 50) || undefined : i.notes,
       }
       return updated
