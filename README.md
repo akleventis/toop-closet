@@ -6,6 +6,25 @@ https://github.com/user-attachments/assets/800ec3e8-679f-44b8-9caf-6ffe2413268f
 
 ---
 
+### Features
+
+**Browsing (public, no login)**
+- Browse any closet by URL slug (e.g. `/toop`)
+- Filter items by tag
+- Click any photo to open a full-screen lightbox — keyboard ←/→/Escape, swipe on mobile
+- Up to 4 photos per item, swipeable in both card and lightbox views
+- Notes visible in lightbox
+
+**Managing (owner login required)**
+- Add, edit, and delete items — name, tag, up to 4 photos, short note
+- Reorder photos per item with left/right arrows in the edit form
+- Auto background removal per photo — runs async after save, raw image shows immediately
+- Custom tags: create, rename (batch), delete
+- Multiple closets: create, rename, delete
+- Transfer items between your own closets
+
+---
+
 ### Stack
 
 - **React 19 + Vite** — frontend, hosted on Netlify
