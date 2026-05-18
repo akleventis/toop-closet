@@ -11,7 +11,7 @@ import { DEFAULT_CATEGORIES } from './constants'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
-  fetchClosets, fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName,
+  fetchClosets, fetchConfig, getOwnProfile, createCloset, deleteCloset, updateCategories, updateClosetName, deleteImage,
 } from './api'
 import type { ClothingItem, ModalState, SavePayload, UserCloset } from './types'
 
@@ -117,14 +117,18 @@ export default function App() {
     setProcessingBg(prev => new Set(prev).add(item.id))
     const imageUrls = [...(item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])]
     ;(async () => {
+      const replacedUrls: string[] = []
       for (let i = 0; i < bgFiles.length; i++) {
         const file = bgFiles[i]
         if (!file || i >= imageUrls.length) continue
+        const oldUrl = imageUrls[i]
         const processed = await removeBackground(file, slug, token)
         imageUrls[i] = await uploadImage(processed, slug, token)
+        replacedUrls.push(oldUrl)
       }
       const saved = await updateItem({ ...item, imageUrl: imageUrls[0] ?? '', imageUrls }, slug, token)
       setItems(prev => prev.map(it => it.id === saved.id ? saved : it))
+      for (const url of replacedUrls) deleteImage(url, slug, token).catch(() => {})
     })()
       .catch(() => showToast('Background removal failed.'))
       .finally(() => setProcessingBg(prev => { const s = new Set(prev); s.delete(item.id); return s }))

@@ -142,6 +142,14 @@ export async function updateClosetName(name: string, slug: string, token: string
   return res.json() as Promise<UserConfig>
 }
 
+export async function deleteImage(url: string, slug: string, token: string): Promise<void> {
+  await fetch(`${BASE}/upload-url`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+    body: JSON.stringify({ url, slug }),
+  })
+}
+
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
   if (!token) throw new Error('Not authenticated')
   const compressed = await resizeImage(file)
