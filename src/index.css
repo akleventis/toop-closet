@@ -37,6 +37,9 @@ html { font-size: 16px; }
     font-family: system-ui, sans-serif;
     line-height: 1.5;
   }
-  button { cursor: pointer; }
   input, select, textarea { font: inherit; }
+}
+
+@layer components {
+  button { cursor: pointer; }
 }

@@ -27,5 +27,5 @@ export function getImages(item: ClothingItem): string[] {
 export type SavePayload = Omit<ClothingItem, 'id'> & { id?: string }
 
 export type ModalState =
-  | { mode: 'add' }
+  | { mode: 'add'; defaultCategory?: string }
   | { mode: 'edit'; item: ClothingItem }

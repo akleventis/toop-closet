@@ -35,19 +35,35 @@ function initImages(modal: ModalState): ImageSlot[] {
 export default function ItemModal({ modal, onSave, onClose, token, slug, categories }: Props) {
   const initial: FormState = modal.mode === 'edit'
     ? { id: modal.item.id, name: modal.item.name, category: modal.item.category, notes: modal.item.notes ?? '' }
-    : { name: '', category: categories[0] ?? '', notes: '' }
+    : { name: '', category: modal.defaultCategory ?? categories[0] ?? '', notes: '' }
   const [form, setForm] = useState<FormState>(initial)
   const [images, setImages] = useState<ImageSlot[]>(() => initImages(modal))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [removeBg, setRemoveBg] = useState(() => localStorage.getItem('removeBg') !== 'false')
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const lbTouchStartX = useRef(0)
+  const lbDidSwipe = useRef(false)
 
   useEffect(() => {
     return () => {
       images.forEach(slot => { if (slot.kind === 'file') URL.revokeObjectURL(slot.preview) })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (lightboxIndex === null) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxIndex(null)
+      if (e.key === 'ArrowRight' && images.length > 1)
+        setLightboxIndex(i => i !== null ? (i + 1) % images.length : null)
+      if (e.key === 'ArrowLeft' && images.length > 1)
+        setLightboxIndex(i => i !== null ? (i - 1 + images.length) % images.length : null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightboxIndex, images.length])
 
   const set = (f: keyof FormState) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -70,6 +86,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
       if (slot.kind === 'file') URL.revokeObjectURL(slot.preview)
       return prev.filter((_, j) => j !== i)
     })
+    setLightboxIndex(null)
   }
 
   const shiftLeft = (i: number) => {
@@ -115,39 +132,46 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
     }
   }
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
-      onClick={busy ? undefined : onClose}
-    >
-      <div
-        className="bg-[--bg] border border-[--border] rounded-lg p-5 w-full max-w-[420px] max-h-[90svh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 className="m-0 mb-3 text-sm font-semibold">
-          {modal.mode === 'edit' ? 'Edit item' : 'Add item'}
-        </h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-          <label className={label}>
-            Name
-            <input type="text" required value={form.name} onChange={set('name')} className={field} />
-          </label>
-          <label className={label}>
-            Tag
-            <select value={form.category} onChange={set('category')} className={field}>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
+  const imgSrc = (slot: ImageSlot) => slot.kind === 'url' ? slot.url : slot.preview
+  const multi = images.length > 1
 
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-[--muted]">Photos</span>
-            {images.length > 0 && (
-              <div className="flex gap-2 flex-wrap">
-                {images.map((slot, i) => {
-                  const src = slot.kind === 'url' ? slot.url : slot.preview
-                  return (
+  return (
+    <>
+      <div
+        className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+        onClick={busy ? undefined : onClose}
+      >
+        <div
+          className="bg-[--bg] border border-[--border] rounded-lg p-5 w-full max-w-[420px] max-h-[90svh] overflow-y-auto"
+          onClick={e => e.stopPropagation()}
+        >
+          <h2 className="m-0 mb-3 text-sm font-semibold">
+            {modal.mode === 'edit' ? 'Edit item' : 'Add item'}
+          </h2>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+            <label className={label}>
+              Name
+              <input type="text" required value={form.name} onChange={set('name')} className={field} />
+            </label>
+            <label className={label}>
+              Tag
+              <select value={form.category} onChange={set('category')} className={field}>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-[--muted]">Photos</span>
+              {images.length > 0 && (
+                <div className="flex gap-2 flex-wrap">
+                  {images.map((slot, i) => (
                     <div key={i} className="relative">
-                      <img src={src} alt="" className="w-16 h-16 object-cover rounded border border-[--border]" />
+                      <img
+                        src={imgSrc(slot)}
+                        alt=""
+                        className="w-16 h-16 object-cover rounded border border-[--border] cursor-zoom-in"
+                        onClick={() => setLightboxIndex(i)}
+                      />
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
@@ -172,70 +196,120 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                         </div>
                       )}
                     </div>
-                  )
-                })}
-              </div>
-            )}
-            {images.length < 4 && (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="self-start px-2.5 py-1 border border-dashed border-[--border] rounded text-xs text-[--muted] hover:bg-[--bg-subtle] transition-colors"
-              >
-                + Add photo{images.length === 0 ? '' : ' (' + (4 - images.length) + ' left)'}
-              </button>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFilesChange}
-              className="hidden"
-            />
-          </div>
-
-          <label className={label}>
-            Notes
-            <div className="relative">
-              <input
-                type="text"
-                maxLength={50}
-                value={form.notes}
-                onChange={set('notes')}
-                placeholder="optional"
-                className={field}
-              />
-              {form.notes.length > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[--muted]">
-                  {50 - form.notes.length}
-                </span>
+                  ))}
+                </div>
               )}
+              {images.length < 4 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="self-start px-2.5 py-1 border border-dashed border-[--border] rounded text-xs text-[--muted] hover:bg-[--bg-subtle] transition-colors"
+                >
+                  + Add photo{images.length === 0 ? '' : ' (' + (4 - images.length) + ' left)'}
+                </button>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFilesChange}
+                className="hidden"
+              />
             </div>
-          </label>
-          <label className="flex items-center gap-2 text-xs text-[--muted] cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={removeBg}
-              onChange={e => {
-                setRemoveBg(e.target.checked)
-                localStorage.setItem('removeBg', String(e.target.checked))
-              }}
-              className="cursor-pointer"
-            />
-            Remove background
-          </label>
-          {error && <p className="text-[--danger] text-xs">{error}</p>}
-          <div className="flex justify-end gap-2 mt-1">
-            <button type="button" disabled={busy} onClick={onClose} className="px-3 py-1 border border-[--border] rounded text-xs font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
-              Cancel
-            </button>
-            <button type="submit" disabled={busy} className="px-3 py-1 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed">
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-          </div>
-        </form>
+
+            <label className={label}>
+              Notes
+              <div className="relative">
+                <input
+                  type="text"
+                  maxLength={50}
+                  value={form.notes}
+                  onChange={set('notes')}
+                  placeholder="optional"
+                  className={field}
+                />
+                {form.notes.length > 0 && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[--muted]">
+                    {50 - form.notes.length}
+                  </span>
+                )}
+              </div>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-[--muted] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={removeBg}
+                onChange={e => {
+                  setRemoveBg(e.target.checked)
+                  localStorage.setItem('removeBg', String(e.target.checked))
+                }}
+                className="cursor-pointer"
+              />
+              Remove background
+            </label>
+            {error && <p className="text-[--danger] text-xs">{error}</p>}
+            <div className="flex justify-end gap-2 mt-1">
+              <button type="button" disabled={busy} onClick={onClose} className="px-3 py-1 border border-[--border] rounded text-xs font-medium hover:bg-[--bg-subtle] transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+                Cancel
+              </button>
+              <button type="submit" disabled={busy} className="px-3 py-1 border border-[--border] rounded bg-[--text] text-[--bg] text-xs font-medium hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed">
+                {busy ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-[200] p-6 gap-3"
+          style={{ cursor: 'zoom-out' }}
+          onTouchStart={e => { lbTouchStartX.current = e.touches[0].clientX; lbDidSwipe.current = false }}
+          onTouchEnd={e => {
+            const delta = lbTouchStartX.current - e.changedTouches[0].clientX
+            if (multi && Math.abs(delta) > 40) {
+              lbDidSwipe.current = true
+              setLightboxIndex(i => i !== null ? (delta > 0 ? (i + 1) % images.length : (i - 1 + images.length) % images.length) : null)
+            }
+          }}
+          onClick={() => { if (!lbDidSwipe.current) setLightboxIndex(null) }}
+        >
+          <img
+            src={imgSrc(images[lightboxIndex])}
+            alt=""
+            className="max-w-full object-contain rounded"
+            style={{ maxHeight: multi ? 'calc(100vh - 7rem)' : 'calc(100vh - 4rem)' }}
+          />
+          {multi && (
+            <div className="absolute bottom-5 left-0 right-0 flex justify-center" onClick={e => e.stopPropagation()}>
+              {images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setLightboxIndex(i)}
+                  className="p-2 flex items-center justify-center"
+                >
+                  <span className={`block w-2 h-2 rounded-full transition-colors ${i === lightboxIndex ? 'bg-white' : 'bg-white/40'}`} />
+                </button>
+              ))}
+            </div>
+          )}
+          {multi && (
+            <>
+              <button
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
+                style={{ fontSize: 28 }}
+                onClick={e => { e.stopPropagation(); setLightboxIndex(i => i !== null ? (i - 1 + images.length) % images.length : null) }}
+              >‹</button>
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
+                style={{ fontSize: 28 }}
+                onClick={e => { e.stopPropagation(); setLightboxIndex(i => i !== null ? (i + 1) % images.length : null) }}
+              >›</button>
+            </>
+          )}
+        </div>
+      )}
+    </>
   )
 }

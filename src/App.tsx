@@ -186,10 +186,10 @@ export default function App() {
     if (category === name) setCategory(ALL)
   }
 
-  const handleRenameCategory = async (changes: { from: string; to: string }[]) => {
-    if (!slug || changes.length === 0) return
+  const handleRenameCategory = async (changes: { from: string; to: string }[], newOrder: string[]) => {
+    if (!slug) return
     const nameMap = new Map(changes.map(c => [c.from, c.to]))
-    const updated = categories.map(c => nameMap.get(c) ?? c)
+    const updated = newOrder.map(c => nameMap.get(c) ?? c)
     await updateCategories(updated, slug, token)
     setCategories(updated)
     for (const { from, to } of changes) {
@@ -276,7 +276,7 @@ export default function App() {
           categories={allCategories}
           active={category}
           onChange={setCategory}
-          onAdd={isOwner ? () => setModal({ mode: 'add' }) : undefined}
+          onAdd={isOwner ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
           onAddCategory={isOwner ? handleAddCategory : undefined}
           onRemoveCategory={isOwner ? handleRemoveCategory : undefined}
           onRenameCategory={isOwner ? handleRenameCategory : undefined}

@@ -9,7 +9,7 @@ type Props = {
   onAdd?: () => void
   onAddCategory?: (name: string) => Promise<void>
   onRemoveCategory?: (name: string) => Promise<void>
-  onRenameCategory?: (changes: { from: string; to: string }[]) => Promise<void>
+  onRenameCategory?: (changes: { from: string; to: string }[], newOrder: string[]) => Promise<void>
   onError?: (msg: string) => void
 }
 
@@ -18,6 +18,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
   const [showAddModal, setShowAddModal] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [editValues, setEditValues] = useState<Record<string, string>>({})
+  const [editOrder, setEditOrder] = useState<string[]>([])
   const [newCat, setNewCat] = useState('')
   const [addLoading, setAddLoading] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
@@ -26,6 +27,17 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
 
   const closeAddModal = () => { setShowAddModal(false); setAddError(null) }
   const closeRenameModal = () => { setShowRenameModal(false); setRenameError(null) }
+
+  const shiftUp = (i: number) => {
+    if (i === 0) return
+    setEditOrder(prev => { const a = [...prev]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return a })
+  }
+  const shiftDown = (i: number) => {
+    setEditOrder(prev => {
+      if (i >= prev.length - 1) return prev
+      const a = [...prev]; [a[i], a[i + 1]] = [a[i + 1], a[i]]; return a
+    })
+  }
 
   const handleAdd = async () => {
     const name = newCat.trim()
@@ -44,17 +56,18 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
   }
 
   const handleRenameSave = async () => {
-    const changes = renamable
-      .filter(c => editValues[c]?.trim() && editValues[c].trim() !== c)
-      .map(c => ({ from: c, to: editValues[c].trim() }))
-    if (changes.length === 0) { closeRenameModal(); return }
+    const changes = editOrder
+      .filter(key => editValues[key]?.trim() && editValues[key].trim() !== key)
+      .map(key => ({ from: key, to: editValues[key].trim() }))
+    const hasReorder = editOrder.some((key, i) => renamable[i] !== key)
+    if (changes.length === 0 && !hasReorder) { closeRenameModal(); return }
     setRenameLoading(true)
     setRenameError(null)
     try {
-      await onRenameCategory?.(changes)
+      await onRenameCategory?.(changes, editOrder)
       closeRenameModal()
     } catch {
-      setRenameError('Failed to rename. Please try again.')
+      setRenameError('Failed to save. Please try again.')
     } finally {
       setRenameLoading(false)
     }
@@ -68,7 +81,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
 
   const catMenuItems: MenuItem[] = [
     ...(onAddCategory ? [{ label: 'New tag', onClick: () => { setNewCat(''); setAddError(null); setShowAddModal(true) } }] : []),
-    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Rename tag', onClick: () => { setEditValues(Object.fromEntries(renamable.map(c => [c, c]))); setRenameError(null); setShowRenameModal(true) } }] : []),
+    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Rename tag', onClick: () => { setEditValues(Object.fromEntries(renamable.map(c => [c, c]))); setEditOrder([...renamable]); setRenameError(null); setShowRenameModal(true) } }] : []),
     ...(onRemoveCategory && renamable.length > 0 ? [{ label: 'Delete tags', onClick: () => setDeleteMode(true) }] : []),
   ]
 
@@ -144,7 +157,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
                 if (e.key === 'Enter') handleAdd()
                 if (e.key === 'Escape' && !addLoading) closeAddModal()
               }}
-              placeholder="Category name"
+              placeholder="Tag name"
               maxLength={40}
               disabled={addLoading}
               className="px-2.5 py-1.5 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full disabled:opacity-60"
@@ -183,20 +196,37 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
           >
             <p className="text-sm font-semibold">Rename tags</p>
             <div className="flex flex-col gap-2">
-              {renamable.map(cat => (
-                <input
-                  key={cat}
-                  value={editValues[cat] ?? cat}
-                  onChange={e => setEditValues(prev => ({ ...prev, [cat]: e.target.value }))}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleRenameSave()
-                    if (e.key === 'Escape' && !renameLoading) closeRenameModal()
-                  }}
-                  maxLength={40}
-                  disabled={renameLoading}
-                  className={`px-2 py-1.5 border rounded text-xs bg-[--bg] text-[--text] focus:outline-none w-full transition-colors disabled:opacity-60 ${editValues[cat] && editValues[cat] !== cat ? 'border-[--text]' : 'border-[--border]'}`}
-                  style={{ fontSize: '16px' }}
-                />
+              {editOrder.map((key, i) => (
+                <div key={key} className="flex items-center gap-1.5">
+                  {editOrder.length > 1 && (
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => shiftUp(i)}
+                        disabled={i === 0 || renameLoading}
+                        className="w-6 h-5 border border-[--border] rounded text-[10px] disabled:opacity-20 hover:bg-[--bg-subtle] transition-colors flex items-center justify-center leading-none"
+                      >↑</button>
+                      <button
+                        type="button"
+                        onClick={() => shiftDown(i)}
+                        disabled={i === editOrder.length - 1 || renameLoading}
+                        className="w-6 h-5 border border-[--border] rounded text-[10px] disabled:opacity-20 hover:bg-[--bg-subtle] transition-colors flex items-center justify-center leading-none"
+                      >↓</button>
+                    </div>
+                  )}
+                  <input
+                    value={editValues[key] ?? key}
+                    onChange={e => setEditValues(prev => ({ ...prev, [key]: e.target.value }))}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleRenameSave()
+                      if (e.key === 'Escape' && !renameLoading) closeRenameModal()
+                    }}
+                    maxLength={40}
+                    disabled={renameLoading}
+                    className={`flex-1 px-2 py-1.5 border rounded text-xs bg-[--bg] text-[--text] focus:outline-none transition-colors disabled:opacity-60 ${editValues[key] && editValues[key] !== key ? 'border-[--text]' : 'border-[--border]'}`}
+                    style={{ fontSize: '16px' }}
+                  />
+                </div>
               ))}
             </div>
             {renameError && <p className="text-[--danger] text-xs">{renameError}</p>}
