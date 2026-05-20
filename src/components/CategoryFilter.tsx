@@ -28,14 +28,12 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
   const closeAddModal = () => { setShowAddModal(false); setAddError(null) }
   const closeRenameModal = () => { setShowRenameModal(false); setRenameError(null) }
 
-  const shiftUp = (i: number) => {
-    if (i === 0) return
-    setEditOrder(prev => { const a = [...prev]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; return a })
-  }
-  const shiftDown = (i: number) => {
+  const moveTo = (from: number, to: number) => {
     setEditOrder(prev => {
-      if (i >= prev.length - 1) return prev
-      const a = [...prev]; [a[i], a[i + 1]] = [a[i + 1], a[i]]; return a
+      const a = [...prev]
+      const [item] = a.splice(from, 1)
+      a.splice(to, 0, item)
+      return a
     })
   }
 
@@ -199,20 +197,16 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
               {editOrder.map((key, i) => (
                 <div key={key} className="flex items-center gap-1.5">
                   {editOrder.length > 1 && (
-                    <div className="flex flex-col gap-0.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => shiftUp(i)}
-                        disabled={i === 0 || renameLoading}
-                        className="w-6 h-5 border border-[--border] rounded text-[10px] disabled:opacity-20 hover:bg-[--bg-subtle] transition-colors flex items-center justify-center leading-none"
-                      >↑</button>
-                      <button
-                        type="button"
-                        onClick={() => shiftDown(i)}
-                        disabled={i === editOrder.length - 1 || renameLoading}
-                        className="w-6 h-5 border border-[--border] rounded text-[10px] disabled:opacity-20 hover:bg-[--bg-subtle] transition-colors flex items-center justify-center leading-none"
-                      >↓</button>
-                    </div>
+                    <select
+                      value={i}
+                      onChange={e => moveTo(i, Number(e.target.value))}
+                      disabled={renameLoading}
+                      className="w-9 border border-[--border] rounded text-xs bg-[--bg] text-[--text] py-1 text-center disabled:opacity-40 cursor-pointer"
+                    >
+                      {editOrder.map((_, j) => (
+                        <option key={j} value={j}>{j + 1}</option>
+                      ))}
+                    </select>
                   )}
                   <input
                     value={editValues[key] ?? key}
@@ -241,9 +235,10 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
               <button
                 onClick={handleRenameSave}
                 disabled={renameLoading}
-                className="px-3 py-1 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40"
+                className="px-3 py-1 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40 flex items-center gap-1.5"
               >
-                {renameLoading ? '…' : 'Save'}
+                {renameLoading && <div className="w-3 h-3 border border-[--bg]/30 border-t-[--bg] rounded-full animate-spin" />}
+                {renameLoading ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>

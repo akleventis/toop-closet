@@ -104,10 +104,10 @@ export default function App() {
   }, [slug])
 
   const allCategories = useMemo(() => [ALL, ...categories], [categories])
-  const filtered = useMemo(
-    () => category === ALL ? items : items.filter(i => i.category === category),
-    [items, category]
-  )
+  const filtered = useMemo(() => {
+    if (category !== ALL) return items.filter(i => i.category === category)
+    return [...items].sort((a, b) => categories.indexOf(a.category) - categories.indexOf(b.category))
+  }, [items, category, categories])
 
   if (!slug) return null
 
