@@ -2,7 +2,7 @@
 
 Spring cleaning resulted in a large pile of clothes I don't wear enough, but don't quite want to rid of. I'll be sending them to my parents house for ease of future travels. Built this to keep track of all my clothes — a shareable virtual closet inventory anyone can browse, with owner-only add/edit/delete behind a login.
 
-https://github.com/user-attachments/assets/800ec3e8-679f-44b8-9caf-6ffe2413268f
+https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 
 ---
 
