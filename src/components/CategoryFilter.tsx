@@ -79,7 +79,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
 
   const catMenuItems: MenuItem[] = [
     ...(onAddCategory ? [{ label: 'New tag', onClick: () => { setNewCat(''); setAddError(null); setShowAddModal(true) } }] : []),
-    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Rename tag', onClick: () => { setEditValues(Object.fromEntries(renamable.map(c => [c, c]))); setEditOrder([...renamable]); setRenameError(null); setShowRenameModal(true) } }] : []),
+    ...(onRenameCategory && renamable.length > 0 ? [{ label: 'Edit tags', onClick: () => { setEditValues(Object.fromEntries(renamable.map(c => [c, c]))); setEditOrder([...renamable]); setRenameError(null); setShowRenameModal(true) } }] : []),
     ...(onRemoveCategory && renamable.length > 0 ? [{ label: 'Delete tags', onClick: () => setDeleteMode(true) }] : []),
   ]
 
@@ -192,7 +192,7 @@ const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
             style={{ backgroundColor: 'var(--bg)' }}
             onClick={e => e.stopPropagation()}
           >
-            <p className="text-sm font-semibold">Rename tags</p>
+            <p className="text-sm font-semibold">Edit tags</p>
             <div className="flex flex-col gap-2">
               {editOrder.map((key, i) => (
                 <div key={key} className="flex items-center gap-1.5">
