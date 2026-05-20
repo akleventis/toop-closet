@@ -108,7 +108,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
       <div className="p-3 flex flex-col gap-1.5 flex-1">
         <div className="flex items-start justify-between gap-1">
           <div className="font-medium text-xs truncate">{item.name}</div>
-          {isOwner && <Menu items={menuItems} />}
+          {isOwner && !isProcessing && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
         {showTransfer && (

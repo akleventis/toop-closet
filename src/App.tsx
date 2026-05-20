@@ -35,6 +35,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState(ALL)
   const [modal, setModal] = useState<ModalState | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
@@ -43,26 +44,28 @@ export default function App() {
   const [renamingCloset, setRenamingCloset] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [renameLoading, setRenameLoading] = useState(false)
+  const [renameClosetError, setRenameClosetError] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteClosetLoading, setDeleteClosetLoading] = useState(false)
+  const [deleteClosetError, setDeleteClosetError] = useState<string | null>(null)
 
   const token = user?.token?.access_token ?? ''
   const isOwner = !!user
 
   // load all closets publicly for nav display
   useEffect(() => {
-    fetchClosets().then(setAllClosets).catch(() => {})
+    fetchClosets().then(setAllClosets).catch(() => { })
   }, [])
 
   // resolve own closets on mount if already logged in
   useEffect(() => {
     if (IS_DEV) {
-      getOwnProfile(DEV_TOKEN).then(p => setUserClosets(p.closets)).catch(() => {})
+      getOwnProfile(DEV_TOKEN).then(p => setUserClosets(p.closets)).catch(console.error)
       return
     }
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
-    if (currentUser && t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(() => {})
+    if (currentUser && t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(console.error)
   }, [])
 
   useEffect(() => {
@@ -71,7 +74,7 @@ export default function App() {
       setUser(u)
       netlifyIdentity.close()
       const t = u.token?.access_token ?? ''
-      if (t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(() => {})
+      if (t) getOwnProfile(t).then(p => setUserClosets(p.closets)).catch(console.error)
     }
     const onLogout = () => { setUser(null); setUserClosets([]); setModal(null) }
     netlifyIdentity.on('login', onLogin)
@@ -87,10 +90,10 @@ export default function App() {
     const controller = new AbortController()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems([])
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCategory(ALL)
+    setClosetName(undefined)
+    setDeleteError(null)
     fetchItems(slug, controller.signal)
       .then(data => { setItems(data); setLoading(false) })
       .catch((err: Error) => { if (err.name !== 'AbortError') setLoading(false) })
@@ -116,22 +119,22 @@ export default function App() {
   const startBgRemoval = (item: ClothingItem, bgFiles: (File | null)[]) => {
     setProcessingBg(prev => new Set(prev).add(item.id))
     const imageUrls = [...(item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [])]
-    ;(async () => {
-      const replacedUrls: string[] = []
-      for (let i = 0; i < bgFiles.length; i++) {
-        const file = bgFiles[i]
-        if (!file || i >= imageUrls.length) continue
-        const oldUrl = imageUrls[i]
-        const processed = await removeBackground(file, slug, token)
-        imageUrls[i] = await uploadImage(processed, slug, token)
-        replacedUrls.push(oldUrl)
-      }
-      const saved = await updateItem({ ...item, imageUrl: imageUrls[0] ?? '', imageUrls }, slug, token)
-      setItems(prev => prev.map(it => it.id === saved.id ? saved : it))
-      for (const url of replacedUrls) deleteImage(url, slug, token).catch(() => {})
-    })()
-      .catch(() => showToast('Background removal failed.'))
-      .finally(() => setProcessingBg(prev => { const s = new Set(prev); s.delete(item.id); return s }))
+      ; (async () => {
+        const replacedUrls: string[] = []
+        for (let i = 0; i < bgFiles.length; i++) {
+          const file = bgFiles[i]
+          if (!file || i >= imageUrls.length) continue
+          const oldUrl = imageUrls[i]
+          const processed = await removeBackground(file, slug, token)
+          imageUrls[i] = await uploadImage(processed, slug, token)
+          replacedUrls.push(oldUrl)
+        }
+        const saved = await updateItem({ ...item, imageUrl: imageUrls[0] ?? '', imageUrls }, slug, token)
+        setItems(prev => prev.map(it => it.id === saved.id ? saved : it))
+        for (const url of replacedUrls) deleteImage(url, slug, token).catch(() => { })
+      })()
+        .catch(() => showToast('Background removal failed.'))
+        .finally(() => setProcessingBg(prev => { const s = new Set(prev); s.delete(item.id); return s }))
   }
 
   const handleSave = async (item: SavePayload, bgFiles?: (File | null)[]) => {
@@ -147,16 +150,22 @@ export default function App() {
     setModal(null)
   }
 
-  const handleDelete = async (id: string) => {
-    if (deletingId) return
-    if (!confirm('Delete this item?')) return
+  const handleDelete = (id: string) => {
+    setDeleteError(null)
+    setConfirmDeleteId(id)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteId || deletingId) return
+    const id = confirmDeleteId
     setDeletingId(id)
     setDeleteError(null)
     try {
       await deleteItem(id, slug, token)
       setItems(prev => prev.filter(i => i.id !== id))
+      setConfirmDeleteId(null)
     } catch {
-      setDeleteError('Failed to delete item. Please try again.')
+      setDeleteError('Failed to delete. Please try again.')
     } finally {
       setDeletingId(null)
     }
@@ -205,12 +214,15 @@ export default function App() {
     e.preventDefault()
     if (!slug || !renameValue.trim()) return
     setRenameLoading(true)
+    setRenameClosetError(null)
     try {
       const config = await updateClosetName(renameValue.trim(), slug, token)
       setClosetName(config.name)
       setUserClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setAllClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setRenamingCloset(false)
+    } catch {
+      setRenameClosetError('Failed to rename. Please try again.')
     } finally {
       setRenameLoading(false)
     }
@@ -219,23 +231,30 @@ export default function App() {
   const handleDeleteCloset = async () => {
     if (!slug) return
     setDeleteClosetLoading(true)
+    setDeleteClosetError(null)
     try {
       await deleteCloset(slug, token)
       const remaining = userClosets.filter(c => c.slug !== slug)
       setUserClosets(remaining)
       setAllClosets(prev => prev.filter(c => c.slug !== slug))
+      setConfirmingDelete(false)
       navigate(remaining.length > 0 ? `/${remaining[0].slug}` : '/')
+    } catch {
+      setDeleteClosetError('Failed to delete closet. Please try again.')
     } finally {
       setDeleteClosetLoading(false)
-      setConfirmingDelete(false)
     }
   }
 
   const handleTransferItem = async (item: ClothingItem, targetSlug: string) => {
     const { id: _id, ...payload } = item
-    await createItem(payload, targetSlug, token)
-    await deleteItem(item.id, slug!, token)
-    setItems(prev => prev.filter(i => i.id !== item.id))
+    try {
+      await createItem(payload, targetSlug, token)
+      await deleteItem(item.id, slug!, token)
+      setItems(prev => prev.filter(i => i.id !== item.id))
+    } catch {
+      showToast('Transfer failed. Please try again.')
+    }
   }
 
   const otherClosets = isOwner ? userClosets.filter(c => c.slug !== slug) : []
@@ -246,11 +265,11 @@ export default function App() {
         slug={slug}
         closets={allClosets}
         user={user}
-        onLogin={IS_DEV ? () => {} : () => netlifyIdentity.open()}
-        onLogout={IS_DEV ? () => {} : () => netlifyIdentity.logout()}
+        onLogin={IS_DEV ? () => { } : () => netlifyIdentity.open()}
+        onLogout={IS_DEV ? () => { } : () => netlifyIdentity.logout()}
         onCreateCloset={isOwner ? handleCreateCloset : undefined}
-        onRenameCloset={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenamingCloset(true) } : undefined}
-        onDeleteCloset={isOwner ? () => setConfirmingDelete(true) : undefined}
+        onRenameCloset={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenameClosetError(null); setRenamingCloset(true) } : undefined}
+        onDeleteCloset={isOwner ? () => { setDeleteClosetError(null); setConfirmingDelete(true) } : undefined}
       />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
@@ -261,8 +280,8 @@ export default function App() {
           onAddCategory={isOwner ? handleAddCategory : undefined}
           onRemoveCategory={isOwner ? handleRemoveCategory : undefined}
           onRenameCategory={isOwner ? handleRenameCategory : undefined}
+          onError={showToast}
         />
-        {deleteError && <p className="text-[--danger] text-sm text-center mt-3">{deleteError}</p>}
         {loading ? (
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
         ) : filtered.length === 0 ? (
@@ -296,8 +315,43 @@ export default function App() {
           categories={categories}
         />
       )}
+      {confirmDeleteId && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4"
+          onClick={!deletingId ? () => { setConfirmDeleteId(null); setDeleteError(null) } : undefined}
+        >
+          <div
+            className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
+            style={{ backgroundColor: 'var(--bg)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold text-[--text]">Delete item?</h2>
+            <p className="text-sm text-[--muted]">This item will be permanently removed.</p>
+            {deleteError && <p className="text-[--danger] text-xs">{deleteError}</p>}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setConfirmDeleteId(null); setDeleteError(null) }}
+                disabled={!!deletingId}
+                className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={!!deletingId}
+                className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40"
+              >
+                {deletingId ? '…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {renamingCloset && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setRenamingCloset(false)}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4"
+          onClick={!renameLoading ? () => { setRenamingCloset(false); setRenameClosetError(null) } : undefined}
+        >
           <form
             onSubmit={handleRenameCloset}
             className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
@@ -314,11 +368,21 @@ export default function App() {
               style={{ fontSize: '16px' }}
               disabled={renameLoading}
             />
+            {renameClosetError && <p className="text-[--danger] text-xs">{renameClosetError}</p>}
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setRenamingCloset(false)} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">
+              <button
+                type="button"
+                onClick={() => { setRenamingCloset(false); setRenameClosetError(null) }}
+                disabled={renameLoading}
+                className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              >
                 Cancel
               </button>
-              <button type="submit" disabled={renameLoading || !renameValue.trim()} className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              <button
+                type="submit"
+                disabled={renameLoading || !renameValue.trim()}
+                className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40"
+              >
                 {renameLoading ? '…' : 'Save'}
               </button>
             </div>
@@ -326,7 +390,10 @@ export default function App() {
         </div>
       )}
       {confirmingDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setConfirmingDelete(false)}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4"
+          onClick={!deleteClosetLoading ? () => { setConfirmingDelete(false); setDeleteClosetError(null) } : undefined}
+        >
           <div
             className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
             style={{ backgroundColor: 'var(--bg)' }}
@@ -334,11 +401,20 @@ export default function App() {
           >
             <h2 className="text-base font-semibold text-[--text]">Delete closet</h2>
             <p className="text-sm text-[--muted]">Delete <strong className="text-[--text]">{closetName ?? slug}</strong>? All items will be permanently removed.</p>
+            {deleteClosetError && <p className="text-[--danger] text-xs">{deleteClosetError}</p>}
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setConfirmingDelete(false)} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">
+              <button
+                onClick={() => { setConfirmingDelete(false); setDeleteClosetError(null) }}
+                disabled={deleteClosetLoading}
+                className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              >
                 Cancel
               </button>
-              <button onClick={handleDeleteCloset} disabled={deleteClosetLoading} className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40">
+              <button
+                onClick={handleDeleteCloset}
+                disabled={deleteClosetLoading}
+                className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40"
+              >
                 {deleteClosetLoading ? '…' : 'Delete'}
               </button>
             </div>
