@@ -171,35 +171,24 @@ export default function App() {
     }
   }
 
-  const handleAddCategory = async (name: string) => {
+  const handleSaveTagEdits = async ({ finalList, renames }: { finalList: string[]; renames: { from: string; to: string }[] }) => {
     if (!slug) return
-    const updated = [...categories, name]
-    const config = await updateCategories(updated, slug, token)
-    setCategories(config.categories)
-  }
-
-  const handleRemoveCategory = async (name: string) => {
-    if (!slug) return
-    const updated = categories.filter(c => c !== name)
-    const config = await updateCategories(updated, slug, token)
-    setCategories(config.categories)
-    if (category === name) setCategory(ALL)
-  }
-
-  const handleRenameCategory = async (changes: { from: string; to: string }[], newOrder: string[]) => {
-    if (!slug) return
-    const nameMap = new Map(changes.map(c => [c.from, c.to]))
-    const updated = newOrder.map(c => nameMap.get(c) ?? c)
-    await updateCategories(updated, slug, token)
-    setCategories(updated)
-    for (const { from, to } of changes) {
+    const nameMap = new Map(renames.map(c => [c.from, c.to]))
+    await updateCategories(finalList, slug, token)
+    setCategories(finalList)
+    for (const { from, to } of renames) {
       const affected = items.filter(i => i.category === from)
       for (const item of affected) {
         await updateItem({ ...item, category: to }, slug, token)
       }
       setItems(prev => prev.map(i => i.category === from ? { ...i, category: to } : i))
     }
-    setCategory(prev => nameMap.get(prev) ?? prev)
+    setCategory(prev => {
+      const renamed = nameMap.get(prev)
+      if (renamed) return renamed
+      if (finalList.includes(prev)) return prev
+      return ALL
+    })
   }
 
   const handleCreateCloset = async (name: string): Promise<string> => {
@@ -277,9 +266,7 @@ export default function App() {
           active={category}
           onChange={setCategory}
           onAdd={isOwner ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
-          onAddCategory={isOwner ? handleAddCategory : undefined}
-          onRemoveCategory={isOwner ? handleRemoveCategory : undefined}
-          onRenameCategory={isOwner ? handleRenameCategory : undefined}
+          onSaveTagEdits={isOwner ? handleSaveTagEdits : undefined}
           onError={showToast}
         />
         {loading ? (
