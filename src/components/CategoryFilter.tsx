@@ -8,12 +8,14 @@ type Props = {
   categories: string[]
   active: string
   onChange: (cat: string) => void
+  searchQuery: string
+  onSearchChange: (q: string) => void
   onAdd?: () => void
   onSaveTagEdits?: (opts: { finalList: string[]; renames: { from: string; to: string }[] }) => Promise<void>
   onError?: (msg: string) => void
 }
 
-export default function CategoryFilter({ categories, active, onChange, onAdd, onSaveTagEdits }: Props) {
+export default function CategoryFilter({ categories, active, onChange, searchQuery, onSearchChange, onAdd, onSaveTagEdits }: Props) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editTags, setEditTags] = useState<EditTag[]>([])
   const [editLoading, setEditLoading] = useState(false)
@@ -100,6 +102,14 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
     <div className="my-5">
       <div className="flex items-center gap-1">
         <div className="flex gap-1 overflow-x-auto scrollbar-none pb-0.5 flex-1">
+          <input
+            type="search"
+            placeholder="Search…"
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            className="w-16 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none focus:w-28 focus:border-[--text] transition-all shrink-0"
+            style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
+          />
           {categories.map(cat => (
             <button
               key={cat}

@@ -267,20 +267,12 @@ export default function App() {
         onDeleteCloset={isOwner ? () => { setDeleteClosetError(null); setConfirmingDelete(true) } : undefined}
       />
       <main className="max-w-4xl mx-auto px-4 pb-12">
-        <div className="pt-3 pb-0">
-          <input
-            type="search"
-            placeholder="Search…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-48 px-2 py-1 border border-[--border] rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none focus:border-[--text] transition-colors"
-            style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
-          />
-        </div>
         <CategoryFilter
           categories={allCategories}
           active={category}
           onChange={setCategory}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
           onAdd={isOwner ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
           onSaveTagEdits={isOwner ? handleSaveTagEdits : undefined}
           onError={showToast}
