@@ -108,7 +108,7 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
             className="w-16 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none focus:w-28 focus:border-[--text] transition-all shrink-0"
-            style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
+            style={{ backgroundColor: 'var(--bg)' }}
           />
           {categories.map(cat => (
             <button
