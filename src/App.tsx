@@ -41,6 +41,7 @@ export default function App() {
   const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
   const [closetName, setClosetName] = useState<string | undefined>(undefined)
   const [toast, setToast] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const [renamingCloset, setRenamingCloset] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [renameLoading, setRenameLoading] = useState(false)
@@ -92,6 +93,7 @@ export default function App() {
     setLoading(true)
     setItems([])
     setCategory(ALL)
+    setSearchQuery('')
     setClosetName(undefined)
     setDeleteError(null)
     fetchItems(slug, controller.signal)
@@ -105,9 +107,13 @@ export default function App() {
 
   const allCategories = useMemo(() => [ALL, ...categories], [categories])
   const filtered = useMemo(() => {
-    if (category !== ALL) return items.filter(i => i.category === category)
-    return [...items].sort((a, b) => categories.indexOf(a.category) - categories.indexOf(b.category))
-  }, [items, category, categories])
+    const q = searchQuery.trim().toLowerCase()
+    let base = category !== ALL
+      ? items.filter(i => i.category === category)
+      : [...items].sort((a, b) => categories.indexOf(a.category) - categories.indexOf(b.category))
+    if (q) base = base.filter(i => i.name.toLowerCase().includes(q))
+    return base
+  }, [items, category, categories, searchQuery])
 
   if (!slug) return null
 
@@ -261,6 +267,16 @@ export default function App() {
         onDeleteCloset={isOwner ? () => { setDeleteClosetError(null); setConfirmingDelete(true) } : undefined}
       />
       <main className="max-w-4xl mx-auto px-4 pb-12">
+        <div className="pt-3 pb-0">
+          <input
+            type="search"
+            placeholder="Search…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-48 px-2 py-1 border border-[--border] rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none focus:border-[--text] transition-colors"
+            style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
+          />
+        </div>
         <CategoryFilter
           categories={allCategories}
           active={category}
@@ -273,7 +289,7 @@ export default function App() {
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
         ) : filtered.length === 0 ? (
           <p className="text-[--muted] text-sm text-center mt-16">
-            {items.length === 0 ? 'No items yet.' : 'No items in this category.'}
+            {items.length === 0 ? 'No items yet.' : searchQuery.trim() ? 'No items match your search.' : 'No items in this category.'}
           </p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
