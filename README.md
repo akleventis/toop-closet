@@ -41,7 +41,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 
 ### How it works
 
-Each closet has a unique URL. The root redirects to my personal closet. Anyone can browse; owners log in to manage items and categories. Accounts are invite-only — I can create one for someone and they get their own separate closets.
+Each closet has a unique slug (e.g. `toop`) that doubles as its URL path (`/toop`) and its S3 key prefix. The root redirects to my personal closet. Anyone can browse; owners log in to manage items and categories. Accounts are invite-only — I can create one for someone and they get their own separate closets.
 
 **S3 layout:**
 
@@ -53,7 +53,57 @@ toop-closet/
   clothing/{slug}/{uuid}         item images (public read)
 ```
 
-Images never pass through a function — the browser gets a **presigned PUT URL** and uploads directly to S3. Ownership is verified server-side on every write by checking `ownerEmail` in the closet config against the JWT.
+**Data shapes:**
+
+`inventory/{slug}.json` — array of items:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "White tee",
+    "category": "Tops",
+    "imageUrl": "https://s3…/clothing/toop/abc123",
+    "imageUrls": ["https://s3…/clothing/toop/abc123", "https://s3…/clothing/toop/def456"],
+    "notes": "Cotton, size M"
+  }
+]
+```
+`imageUrl` always mirrors `imageUrls[0]` for backwards compat — old single-image items may only have `imageUrl`. Always read via `getImages(item)`.
+
+`users/{slug}/config.json` — closet metadata:
+```json
+{
+  "slug": "toop",
+  "ownerEmail": "owner@example.com",
+  "categories": ["Tops", "Bottoms", "Shoes"],
+  "name": "Denver"
+}
+```
+`slug` is permanent (URL + S3 key). `name` is the editable display label.
+
+`_users/{netlify-sub}.json` — per-user closet index:
+```json
+{ "slugs": ["toop", "central-coast"] }
+```
+`sub` is the Netlify Identity UUID from the JWT. Written on closet create/delete; read on login to populate the owner nav. Lazy-migrated on first login if missing.
+
+**Auth:**
+
+Netlify Identity issues a JWT on login. Every write endpoint reads `ownerEmail` from the closet's config and checks it against `user.email` from the decoded JWT — no separate ACL table. In local dev, `requireAuth` returns a fake user from `DEV_USER_EMAIL` in `.env.local` so the full CRUD flow works without a real login.
+
+**Read vs. write lifecycle:**
+
+```
+GET  /toop          →  fetch inventory/{slug}.json (public, direct S3 read via function)
+POST /clothes       →  auth check → append to inventory array → write back to S3
+PUT  /upload-url    →  auth + ownership check → return presigned PUT URL (300s TTL)
+                         browser uploads directly to S3 — image never passes through a function
+DELETE /clothes     →  auth + ownership check → filter item from array → write back to S3
+```
+
+**Share links:**
+
+Each item has a permanent UUID. Clicking "Copy link" on any card writes `/{slug}?item={first-8-chars-of-uuid}` to the clipboard. On load, the app finds the matching item by ID prefix, opens its lightbox, and strips the param from the URL. No new data is stored — the ID has existed since the item was created.
 
 ---
 

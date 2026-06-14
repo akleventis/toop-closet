@@ -2,18 +2,21 @@ import { useState, useEffect, useRef } from 'react'
 import type { ClothingItem, UserCloset } from '../types'
 import { getImages } from '../types'
 import Menu from './Menu'
+import type { MenuItem } from './Menu'
 
 type Props = {
   item: ClothingItem
   isOwner: boolean
   isProcessing?: boolean
   otherClosets?: UserCloset[]
+  autoOpen?: boolean
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
   onTransfer?: (item: ClothingItem, targetSlug: string) => Promise<void>
+  onShare?: () => void
 }
 
-export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], onEdit, onDelete, onTransfer }: Props) {
+export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], autoOpen, onEdit, onDelete, onTransfer, onShare }: Props) {
   const images = getImages(item)
   const multi = images.length > 1
   const [imgIndex, setImgIndex] = useState(0)
@@ -29,6 +32,9 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   useEffect(() => {
     setImgIndex(i => Math.min(i, Math.max(0, images.length - 1)))
   }, [images.length])
+  useEffect(() => {
+    if (autoOpen) setLightbox(true)
+  }, [autoOpen])
 
   useEffect(() => {
     if (!lightbox) return
@@ -41,11 +47,13 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox, multi, images.length])
 
-  const menuItems = [
-    { label: 'Edit', onClick: () => onEdit(item) },
-    ...(onTransfer && otherClosets.length > 0 ? [{ label: 'Transfer', onClick: () => setShowTransfer(t => !t) }] : []),
-    { label: 'Delete', danger: true, onClick: () => onDelete(item.id) },
-  ]
+  const menuItems: MenuItem[] = []
+  if (onShare) menuItems.push({ label: 'Copy link', onClick: onShare })
+  if (isOwner) {
+    menuItems.push({ label: 'Edit', onClick: () => onEdit(item) })
+    if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => !t) })
+    menuItems.push({ label: 'Delete', danger: true, onClick: () => onDelete(item.id) })
+  }
 
   const currentImg = images[imgIndex] ?? ''
 
@@ -108,7 +116,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
       <div className="p-3 flex flex-col gap-1.5 flex-1">
         <div className="flex items-start justify-between gap-1">
           <div className="font-medium text-xs truncate">{item.name}</div>
-          {isOwner && !isProcessing && <Menu items={menuItems} />}
+          {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
         {showTransfer && (

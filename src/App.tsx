@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import netlifyIdentity from 'netlify-identity-widget'
@@ -42,6 +42,8 @@ export default function App() {
   const [closetName, setClosetName] = useState<string | undefined>(undefined)
   const [toast, setToast] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sharedItemId, setSharedItemId] = useState<string | null>(null)
+  const itemParamRef = useRef(new URLSearchParams(window.location.search).get('item'))
   const [renamingCloset, setRenamingCloset] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [renameLoading, setRenameLoading] = useState(false)
@@ -96,8 +98,19 @@ export default function App() {
     setSearchQuery('')
     setClosetName(undefined)
     setDeleteError(null)
+    setSharedItemId(null)
     fetchItems(slug, controller.signal)
-      .then(data => { setItems(data); setLoading(false) })
+      .then(data => {
+        setItems(data)
+        setLoading(false)
+        const param = itemParamRef.current
+        if (param) {
+          const match = data.find(i => i.id.startsWith(param))
+          if (match) setSharedItemId(match.id)
+          itemParamRef.current = null
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      })
       .catch((err: Error) => { if (err.name !== 'AbortError') setLoading(false) })
     fetchConfig(slug)
       .then(c => { setCategories(c.categories); setClosetName(c.name) })
@@ -292,9 +305,14 @@ export default function App() {
                 isOwner={isOwner}
                 isProcessing={processingBg.has(item.id)}
                 otherClosets={otherClosets}
+                autoOpen={item.id === sharedItemId}
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
                 onTransfer={isOwner ? handleTransferItem : undefined}
+                onShare={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/${slug}?item=${item.id.slice(0, 8)}`)
+                  showToast('Link copied!')
+                }}
               />
             ))}
           </div>
