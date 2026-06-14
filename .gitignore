@@ -26,6 +26,7 @@ dist-ssr
 .env.local
 .env
 .netlify
+deno.lock
 CLAUDE.md
 .claude
 /docs

@@ -106,7 +106,7 @@ export default function App() {
         const param = itemParamRef.current
         if (param) {
           const match = data.find(i => i.id.startsWith(param))
-          if (match) setSharedItemId(match.id)
+          if (match) { setSharedItemId(match.id); setCategory(match.category) }
           itemParamRef.current = null
           window.history.replaceState({}, '', window.location.pathname)
         }
