@@ -152,13 +152,13 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           }}
           onClick={() => { if (!lbDidSwipe.current) setLightbox(false) }}
         >
-          <p className="text-white font-medium text-base">{item.name}</p>
           <img
             src={images[imgIndex]}
             alt={item.name}
             className="max-w-full object-contain rounded"
             style={{ maxHeight: multi ? 'calc(100vh - 9rem)' : 'calc(100vh - 6rem)' }}
           />
+          <p className="text-white/90 text-sm font-medium">{item.name}</p>
           {item.notes && <p className="text-white/70 text-sm">{item.notes}</p>}
           {multi && (
             <div className="absolute bottom-5 left-0 right-0 flex justify-center" onClick={e => e.stopPropagation()}>
