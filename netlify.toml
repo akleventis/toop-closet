@@ -5,6 +5,8 @@
 
 [functions]
   node_bundler = "esbuild"
+  # public/ isn't on the function filesystem; bundle it so functions can read its files.
+  included_files = ["public/**"]
 
 [functions."withoutbg"]
   timeout = 26

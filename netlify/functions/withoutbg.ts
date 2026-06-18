@@ -1,7 +1,7 @@
 import { requireAuth } from '../lib/auth.js'
+import { removeBackground, bgRemovalConfigured } from '../lib/bgRemoval.js'
+import { JSON_HEADERS } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
-
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   if (event.httpMethod !== 'POST') {
@@ -13,9 +13,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
-  const withoutbgUrl = process.env.WITHOUTBG_URL
-  const withoutbgSecret = process.env.WITHOUTBG_SECRET
-  if (!withoutbgUrl || !withoutbgSecret) {
+  if (!bgRemovalConfigured()) {
     return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal not configured' }) }
   }
 
@@ -29,33 +27,18 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   const contentType = event.headers['content-type'] ?? 'image/jpeg'
 
-  const formData = new FormData()
-  formData.append('file', new Blob([imageBuffer], { type: contentType }), 'image')
-  formData.append('format', 'webp')
-  formData.append('quality', '85')
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20_000)
-
-  let res: Response
+  let resultBuffer: Buffer
   try {
-    res = await fetch(`${withoutbgUrl}/api/remove-background`, {
-      method: 'POST',
-      headers: { 'X-Withoutbg-Secret': withoutbgSecret },
-      body: formData,
-      signal: controller.signal,
-    })
-  } catch {
-    clearTimeout(timeout)
-    return { statusCode: 504, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal timed out' }) }
+    resultBuffer = await removeBackground(imageBuffer, contentType, 'webp')
+  } catch (err) {
+    // Timeout aborts the fetch with an AbortError → 504; anything else (non-2xx, network) → 502.
+    const timedOut = err instanceof Error && err.name === 'AbortError'
+    return {
+      statusCode: timedOut ? 504 : 502,
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ error: timedOut ? 'Background removal timed out' : 'Background removal failed' }),
+    }
   }
-  clearTimeout(timeout)
-
-  if (!res.ok) {
-    return { statusCode: 502, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal failed' }) }
-  }
-
-  const resultBuffer = Buffer.from(await res.arrayBuffer())
 
   return {
     statusCode: 200,

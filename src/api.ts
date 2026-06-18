@@ -1,4 +1,4 @@
-import type { ClothingItem, SavePayload, UserConfig, UserCloset, OwnProfile } from './types'
+import type { ClothingItem, SavePayload, UserConfig, UserCloset, OwnProfile, Fit, FitItem } from './types'
 
 const BASE = '/.netlify/functions'
 
@@ -79,10 +79,8 @@ export async function resizeImage(file: File, maxDim = 1500): Promise<File> {
 export async function fetchClosets(): Promise<UserCloset[]> {
   const res = await fetch(`${BASE}/closets`)
   if (!res.ok) throw new Error('Failed to fetch closets')
-  const data = await res.json() as { closets?: UserCloset[]; slugs?: string[] }
-  if (data.closets) return data.closets
-  // backwards compat
-  return (data.slugs ?? []).map(s => ({ slug: s }))
+  const data = await res.json() as { closets: UserCloset[] }
+  return data.closets
 }
 
 export async function fetchConfig(slug: string): Promise<UserConfig> {
@@ -94,10 +92,7 @@ export async function fetchConfig(slug: string): Promise<UserConfig> {
 export async function getOwnProfile(token: string): Promise<OwnProfile> {
   const res = await fetch(`${BASE}/config`, { headers: authHeaders(token) })
   if (!res.ok) throw new Error('Failed to fetch own profile')
-  const data = await res.json() as OwnProfile | { slugs: string[] }
-  // backwards compat: old API returned { slugs }
-  if ('slugs' in data) return { closets: (data.slugs as string[]).map((s: string) => ({ slug: s })) }
-  return data as OwnProfile
+  return res.json() as Promise<OwnProfile>
 }
 
 export async function createCloset(name: string, token: string): Promise<UserConfig> {
@@ -148,6 +143,70 @@ export async function deleteImage(url: string, slug: string, token: string): Pro
     headers: authHeaders(token),
     body: JSON.stringify({ url, slug }),
   })
+}
+
+// Image generation runs in a Netlify background function (sync functions cap at 26s).
+// We kick off the job, then poll fit-status until the result lands in S3.
+export async function createFit(items: FitItem[], context: string, token: string, stub = false, signal?: AbortSignal): Promise<string> {
+  const jobId = crypto.randomUUID()
+  const res = await fetch(`${BASE}/create-fit-background`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ jobId, items, context, stub }),
+    signal,
+  })
+  // Background functions respond 202 Accepted immediately.
+  if (!res.ok && res.status !== 202) throw new Error('Failed to start fit generation')
+
+  const deadline = Date.now() + 180_000
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 2000))
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    const statusRes = await fetch(`${BASE}/fit-status?jobId=${encodeURIComponent(jobId)}`, {
+      headers: authHeaders(token),
+      signal,
+    })
+    if (!statusRes.ok) continue
+    const data = await statusRes.json() as { status: 'pending' | 'done' | 'error'; imageBase64?: string; error?: string }
+    if (data.status === 'done' && data.imageBase64) return data.imageBase64
+    if (data.status === 'error') throw new Error(data.error || 'Fit generation failed')
+  }
+  throw new Error('Fit generation timed out')
+}
+
+export async function fetchFits(): Promise<Fit[]> {
+  const res = await fetch(`${BASE}/fits`)
+  if (!res.ok) throw new Error('Failed to fetch fits')
+  return res.json() as Promise<Fit[]>
+}
+
+export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string): Promise<Fit> {
+  const res = await fetch(`${BASE}/fits`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ name, items, imageBase64, context }),
+  })
+  if (!res.ok) throw new Error('Failed to save fit')
+  return res.json() as Promise<Fit>
+}
+
+export async function updateFit(id: string, updates: { name?: string; items?: FitItem[]; imageBase64?: string; context?: string }, token: string): Promise<Fit> {
+  const res = await fetch(`${BASE}/fits`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ id, ...updates }),
+  })
+  if (!res.ok) throw new Error('Failed to update fit')
+  return res.json() as Promise<Fit>
+}
+
+export async function deleteFit(id: string, token: string): Promise<void> {
+  const res = await fetch(`${BASE}/fits`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+    body: JSON.stringify({ id }),
+  })
+  if (!res.ok) throw new Error('Failed to delete fit')
 }
 
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {

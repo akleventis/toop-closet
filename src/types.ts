@@ -29,3 +29,19 @@ export type SavePayload = Omit<ClothingItem, 'id'> & { id?: string }
 export type ModalState =
   | { mode: 'add'; defaultCategory?: string }
   | { mode: 'edit'; item: ClothingItem }
+
+export type FitItem = {
+  itemId: string
+  slug: string
+  name: string
+  imageUrl: string
+}
+
+export type Fit = {
+  id: string
+  name?: string
+  imageUrl: string
+  items: FitItem[]
+  context?: string   // styling direction; pre-fills the textarea on edit
+  createdAt: string
+}

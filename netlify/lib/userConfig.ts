@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
-import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3'
-import { s3 } from './s3.js'
+import { ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { s3, readJson, writeJson } from './s3.js'
 
 export type ClosetConfig = {
   slug: string
@@ -23,51 +23,20 @@ export async function allSlugs(): Promise<string[]> {
 }
 
 export async function readClosetConfig(slug: string): Promise<ClosetConfig | null> {
-  try {
-    const res = await s3.send(new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: `users/${slug}/config.json`,
-    }))
-    return JSON.parse(await res.Body!.transformToString()) as ClosetConfig
-  } catch (err: unknown) {
-    if ((err as { name?: string }).name === 'NoSuchKey') return null
-    throw err
-  }
+  return readJson<ClosetConfig>(`users/${slug}/config.json`)
 }
 
 export async function writeClosetConfig(config: ClosetConfig): Promise<void> {
-  await s3.send(new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: `users/${config.slug}/config.json`,
-    Body: JSON.stringify(config),
-    ContentType: 'application/json',
-  }))
+  return writeJson(`users/${config.slug}/config.json`, config)
 }
 
 export async function readUserIndex(userId: string): Promise<UserCloset[] | null> {
-  try {
-    const res = await s3.send(new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: `_users/${userId}.json`,
-    }))
-    const raw = JSON.parse(await res.Body!.transformToString()) as { closets?: UserCloset[]; slugs?: string[] }
-    if (raw.closets) return raw.closets
-    // backwards compat: migrate old { slugs: string[] } format
-    if (raw.slugs) return raw.slugs.map(s => ({ slug: s }))
-    return null
-  } catch (err: unknown) {
-    if ((err as { name?: string }).name === 'NoSuchKey') return null
-    throw err
-  }
+  const raw = await readJson<{ closets: UserCloset[] }>(`_users/${userId}.json`)
+  return raw?.closets ?? null
 }
 
 export async function writeUserIndex(userId: string, closets: UserCloset[]): Promise<void> {
-  await s3.send(new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: `_users/${userId}.json`,
-    Body: JSON.stringify({ closets }),
-    ContentType: 'application/json',
-  }))
+  return writeJson(`_users/${userId}.json`, { closets })
 }
 
 export async function generateSlug(): Promise<string> {

@@ -18,6 +18,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 - Click any photo to open a full-screen lightbox — keyboard ←/→/Escape, swipe on mobile
 - Up to 4 photos per item, swipeable in both card and lightbox views
 - Notes visible in lightbox
+- Browse "fits" — AI-composed outfits — on the shared `/fits` page
 
 **Managing (owner login required)**
 - Add, edit, and delete items — name, tag, up to 4 photos, short note
@@ -26,6 +27,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 - Custom tags: create, rename (batch), delete
 - Multiple closets: create, rename, delete
 - Transfer items between your own closets
+- Build "fits": pick items across closets and generate an image of them worn together on a base subject (you or a mannequin) — regenerate, rename, or edit anytime
 
 ---
 
@@ -36,6 +38,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 - **AWS S3** — item inventory + images
 - **Netlify Identity** — invite-only auth
 - **withoutbg on Synology NAS** — self-hosted AI background removal, exposed via Tailscale Funnel
+- **OpenAI (gpt-4o image generation)** — composes "fits" onto a base subject
 
 ---
 
@@ -50,7 +53,10 @@ toop-closet/
   inventory/{slug}.json          item list for each closet
   users/{slug}/config.json       closet config — owner, categories, display name
   _users/{netlify-sub}.json      index of closets owned by each user
+  fits/index.json                generated fits
+  fits/_jobs/{jobId}.json        transient fit-generation jobs
   clothing/{slug}/{uuid}         item images (public read)
+  clothing/fits-{id}.webp        composed fit images (public read)
 ```
 
 **Data shapes:**
@@ -83,9 +89,9 @@ toop-closet/
 
 `_users/{netlify-sub}.json` — per-user closet index:
 ```json
-{ "slugs": ["toop", "central-coast"] }
+{ "closets": [{ "slug": "toop", "name": "Denver" }, { "slug": "central-coast" }] }
 ```
-`sub` is the Netlify Identity UUID from the JWT. Written on closet create/delete; read on login to populate the owner nav. Lazy-migrated on first login if missing.
+`sub` is the Netlify Identity UUID from the JWT. Written on closet create/rename/delete; read on login to populate the owner nav.
 
 **Auth:**
 
@@ -103,7 +109,11 @@ DELETE /clothes     →  auth + ownership check → filter item from array → w
 
 **Share links:**
 
-Each item has a permanent UUID. Clicking "Copy link" on any card writes `/{slug}?item={first-8-chars-of-uuid}` to the clipboard. On load, the app finds the matching item by ID prefix, opens its lightbox, and strips the param from the URL. No new data is stored — the ID has existed since the item was created.
+Each item has a permanent UUID. Clicking "Copy link" on any card writes `/{slug}?item={first-8-chars-of-uuid}` to the clipboard. On load, the app finds the matching item by ID prefix, opens its lightbox, and strips the param from the URL. No new data is stored — the ID has existed since the item was created. Fits share the same way via `/fits?fit={first-8-chars}`.
+
+**AI fits:**
+
+Pick items across closets and the app renders them worn together on a base subject (a photo of you or a mannequin). Generation can outrun a normal function's timeout, so it runs in a Netlify *background* function (15-min limit): the request returns instantly with a job ID, the function writes its result to `fits/_jobs/{jobId}.json`, and the browser polls until the image lands. The composed image gets background-removed too, then is stored at a fixed `clothing/fits-{id}.webp` — regenerating overwrites it, so the URL carries a `?v=` cache-bust to dodge stale browser caches.
 
 ---
 

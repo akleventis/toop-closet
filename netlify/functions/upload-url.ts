@@ -1,13 +1,12 @@
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { s3 } from '../lib/s3.js'
+import { s3, s3PublicUrl } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import { readClosetConfig } from '../lib/userConfig.js'
+import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
-const SLUG_RE = /^[a-z0-9_-]{1,50}$/
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   const user = requireAuth(context)
@@ -63,7 +62,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   })
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 300 })
-  const imageUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`
+  const imageUrl = s3PublicUrl(key)
 
   return {
     statusCode: 200,

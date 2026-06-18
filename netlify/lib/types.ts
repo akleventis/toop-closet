@@ -1,3 +1,6 @@
+export const JSON_HEADERS = { 'Content-Type': 'application/json' } as const
+export const SLUG_RE = /^[a-z0-9_-]{1,50}$/
+
 export interface HandlerEvent {
   httpMethod: string
   body: string | null

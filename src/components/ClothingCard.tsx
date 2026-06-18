@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import type { ClothingItem, UserCloset } from '../types'
 import { getImages } from '../types'
 import Menu from './Menu'
 import type { MenuItem } from './Menu'
+import Lightbox from './Lightbox'
 
 type Props = {
   item: ClothingItem
@@ -25,37 +26,29 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const [transferring, setTransferring] = useState(false)
   const touchStartX = useRef(0)
   const didSwipe = useRef(false)
-  const lbTouchStartX = useRef(0)
-  const lbDidSwipe = useRef(false)
 
-  useEffect(() => { setImgIndex(0) }, [item.id])
-  useEffect(() => {
-    setImgIndex(i => Math.min(i, Math.max(0, images.length - 1)))
-  }, [images.length])
-  useEffect(() => {
+  // Adjust state during render instead of in effects — avoids cascading re-renders.
+  const [prevId, setPrevId] = useState(item.id)
+  if (item.id !== prevId) {
+    setPrevId(item.id)
+    setImgIndex(0)            // reset carousel when the item itself changes
+  }
+  const [prevAutoOpen, setPrevAutoOpen] = useState(autoOpen)
+  if (autoOpen !== prevAutoOpen) {
+    setPrevAutoOpen(autoOpen)
     if (autoOpen) setLightbox(true)
-  }, [autoOpen])
-
-  useEffect(() => {
-    if (!lightbox) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLightbox(false)
-      if (e.key === 'ArrowRight' && multi) setImgIndex(i => (i + 1) % images.length)
-      if (e.key === 'ArrowLeft' && multi) setImgIndex(i => (i - 1 + images.length) % images.length)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [lightbox, multi, images.length])
+  }
+  // Clamp is derived, not stored — covers an image being removed while viewing.
+  const safeIndex = Math.min(imgIndex, Math.max(0, images.length - 1))
 
   const menuItems: MenuItem[] = []
-  if (onShare) menuItems.push({ label: 'Copy link', onClick: onShare })
   if (isOwner) {
     menuItems.push({ label: 'Edit', onClick: () => onEdit(item) })
     if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => !t) })
     menuItems.push({ label: 'Delete', danger: true, onClick: () => onDelete(item.id) })
   }
 
-  const currentImg = images[imgIndex] ?? ''
+  const currentImg = images[safeIndex] ?? ''
 
   return (
     <div className="bg-[--bg-subtle] border border-[--border] rounded-lg flex flex-col">
@@ -106,7 +99,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
             >›</button>
             <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
               {images.map((_, i) => (
-                <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === imgIndex ? 'bg-white' : 'bg-white/40'}`} />
+                <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === safeIndex ? 'bg-white' : 'bg-white/40'}`} />
               ))}
             </div>
           </>
@@ -139,55 +132,14 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
       </div>
 
       {lightbox && (
-        <div
-          className="fixed inset-0 bg-black/85 flex flex-col items-center justify-center z-[200] p-6 gap-3"
-          style={{ cursor: 'zoom-out' }}
-          onTouchStart={e => { lbTouchStartX.current = e.touches[0].clientX; lbDidSwipe.current = false }}
-          onTouchEnd={e => {
-            const delta = lbTouchStartX.current - e.changedTouches[0].clientX
-            if (multi && Math.abs(delta) > 40) {
-              lbDidSwipe.current = true
-              setImgIndex(i => delta > 0 ? (i + 1) % images.length : (i - 1 + images.length) % images.length)
-            }
-          }}
-          onClick={() => { if (!lbDidSwipe.current) setLightbox(false) }}
-        >
-          <img
-            src={images[imgIndex]}
-            alt={item.name}
-            className="max-w-full object-contain rounded"
-            style={{ maxHeight: multi ? 'calc(100vh - 9rem)' : 'calc(100vh - 6rem)' }}
-          />
-          <p className="text-white/90 text-sm font-medium">{item.name}</p>
-          {item.notes && <p className="text-white/70 text-sm">{item.notes}</p>}
-          {multi && (
-            <div className="absolute bottom-5 left-0 right-0 flex justify-center" onClick={e => e.stopPropagation()}>
-              {images.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setImgIndex(i)}
-                  className="p-2 flex items-center justify-center"
-                >
-                  <span className={`block w-2 h-2 rounded-full transition-colors ${i === imgIndex ? 'bg-white' : 'bg-white/40'}`} />
-                </button>
-              ))}
-            </div>
-          )}
-          {multi && (
-            <>
-              <button
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-                style={{ fontSize: 28 }}
-                onClick={e => { e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length) }}
-              >‹</button>
-              <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-                style={{ fontSize: 28 }}
-                onClick={e => { e.stopPropagation(); setImgIndex(i => (i + 1) % images.length) }}
-              >›</button>
-            </>
-          )}
-        </div>
+        <Lightbox
+          images={images}
+          name={item.name}
+          notes={item.notes}
+          initialIndex={safeIndex}
+          onShare={onShare}
+          onClose={() => setLightbox(false)}
+        />
       )}
     </div>
   )

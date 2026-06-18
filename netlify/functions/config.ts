@@ -2,13 +2,12 @@ import { DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { s3 } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import {
-  allSlugs, readClosetConfig, writeClosetConfig,
+  readClosetConfig, writeClosetConfig,
   readUserIndex, writeUserIndex, generateSlug,
 } from '../lib/userConfig.js'
+import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
-const SLUG_RE = /^[a-z0-9_-]{1,50}$/
 const DEFAULT_CATEGORIES = ['Tee Shirts', 'Jackets', 'Pants/Shorts', 'Shoes', 'Misc']
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
@@ -36,25 +35,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
-  // Auth: GET (no slug) → own closets with names; lazy-migrates unclaimed configs on first login
+  // Auth: GET (no slug) → own closets with names
   if (method === 'GET') {
-    let closets = await readUserIndex(netlifyUser.sub)
-
-    if (!closets) {
-      const all = await allSlugs()
-      const owned: { slug: string; name?: string }[] = []
-      await Promise.all(all.map(async s => {
-        const cfg = await readClosetConfig(s)
-        if (!cfg) return
-        if (!cfg.ownerEmail || cfg.ownerEmail === netlifyUser.email) {
-          owned.push({ slug: s, name: cfg.name })
-          if (!cfg.ownerEmail) await writeClosetConfig({ ...cfg, ownerEmail: netlifyUser.email })
-        }
-      }))
-      closets = owned
-      await writeUserIndex(netlifyUser.sub, closets)
-    }
-
+    const closets = (await readUserIndex(netlifyUser.sub)) ?? []
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ closets }) }
   }
 

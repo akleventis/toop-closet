@@ -1,7 +1,7 @@
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
-import { s3 } from '../lib/s3.js'
+import { readJson, writeJson } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
 import { readClosetConfig } from '../lib/userConfig.js'
+import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type Item = {
@@ -13,10 +13,6 @@ type Item = {
   notes?: string
 }
 
-const JSON_HEADERS = { 'Content-Type': 'application/json' }
-
-const SLUG_RE = /^[a-z0-9_-]{1,50}$/
-
 function safeImageUrl(value: unknown): string {
   if (!value) return ''
   try {
@@ -27,28 +23,15 @@ function safeImageUrl(value: unknown): string {
   }
 }
 
-const getInventory = async (slug: string): Promise<Item[]> => {
-  try {
-    const res = await s3.send(new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: `inventory/${slug}.json`,
-    }))
-    const body = await res.Body?.transformToString()
-    return body ? (JSON.parse(body) as Item[]) : []
-  } catch (err: unknown) {
-    if ((err as { name?: string }).name === 'NoSuchKey') return []
-    throw err
-  }
-}
+// Sanitize a raw imageUrls payload to a list of valid http(s) URLs.
+const parseImageUrls = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.map(safeImageUrl).filter(Boolean) : []
 
-const saveInventory = async (slug: string, items: Item[]): Promise<void> => {
-  await s3.send(new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: `inventory/${slug}.json`,
-    Body: JSON.stringify(items),
-    ContentType: 'application/json',
-  }))
-}
+const getInventory = (slug: string): Promise<Item[]> =>
+  readJson<Item[]>(`inventory/${slug}.json`).then(r => r ?? [])
+
+const saveInventory = (slug: string, items: Item[]): Promise<void> =>
+  writeJson(`inventory/${slug}.json`, items)
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   const method = event.httpMethod
@@ -86,9 +69,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!body.name || !body.category) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name and category are required' }) }
     }
-    const rawUrls = Array.isArray(body.imageUrls)
-      ? (body.imageUrls as unknown[]).map(u => safeImageUrl(u)).filter(Boolean)
-      : []
+    const rawUrls = parseImageUrls(body.imageUrls)
     const imageUrls = rawUrls.length > 1 ? rawUrls : undefined
     const newItem: Item = {
       id: crypto.randomUUID(),
@@ -112,9 +93,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       if (i.id !== body.id) return i
       let newImageUrls: string[] | undefined = i.imageUrls
       if (body.imageUrls !== undefined) {
-        const rawUrls = Array.isArray(body.imageUrls)
-          ? (body.imageUrls as unknown[]).map(u => safeImageUrl(u)).filter(Boolean)
-          : []
+        const rawUrls = parseImageUrls(body.imageUrls)
         newImageUrls = rawUrls.length > 1 ? rawUrls : undefined
       }
       const newImageUrl = newImageUrls

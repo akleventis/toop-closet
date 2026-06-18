@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import Menu from './Menu'
-import type { MenuItem } from './Menu'
 
 type EditTag = { key: string; value: string; isNew: boolean }
 
@@ -12,7 +11,6 @@ type Props = {
   onSearchChange: (q: string) => void
   onAdd?: () => void
   onSaveTagEdits?: (opts: { finalList: string[]; renames: { from: string; to: string }[] }) => Promise<void>
-  onError?: (msg: string) => void
 }
 
 export default function CategoryFilter({ categories, active, onChange, searchQuery, onSearchChange, onAdd, onSaveTagEdits }: Props) {
@@ -94,10 +92,6 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
   const activePill = `${pillBase} text-[--text] underline underline-offset-4`
   const inactivePill = `${pillBase} text-[--muted] hover:text-[--text] hover:bg-[--bg-subtle]`
 
-  const catMenuItems: MenuItem[] = [
-    ...(onSaveTagEdits ? [{ label: 'Edit tags', onClick: openEditModal }] : []),
-  ]
-
   return (
     <div className="my-5">
       <div className="flex items-center gap-1">
@@ -122,7 +116,7 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
           ))}
         </div>
 
-        {catMenuItems.length > 0 && <Menu items={catMenuItems} />}
+        {onSaveTagEdits && <Menu items={[{ label: 'Edit tags', onClick: openEditModal }]} />}
 
         {onAdd && (
           <button

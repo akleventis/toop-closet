@@ -1,4 +1,4 @@
-import { S3Client } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 
 export const s3 = new S3Client({
   region: process.env.S3_REGION,
@@ -7,3 +7,26 @@ export const s3 = new S3Client({
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
   },
 })
+
+export function s3PublicUrl(key: string): string {
+  return `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`
+}
+
+export async function readJson<T>(key: string): Promise<T | null> {
+  try {
+    const res = await s3.send(new GetObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: key }))
+    return JSON.parse(await res.Body!.transformToString()) as T
+  } catch (err: unknown) {
+    if ((err as { name?: string }).name === 'NoSuchKey') return null
+    throw err
+  }
+}
+
+export async function writeJson(key: string, value: unknown): Promise<void> {
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: key,
+    Body: JSON.stringify(value),
+    ContentType: 'application/json',
+  }))
+}
