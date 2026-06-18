@@ -5,15 +5,18 @@ import './index.css'
 import App from './App'
 import FitsPage from './pages/FitsPage'
 import RootRedirect from './pages/RootRedirect'
+import { FitGenerationProvider } from './contexts/FitGeneration'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/fits" element={<FitsPage />} />
-        <Route path="/:slug" element={<App />} />
-        <Route path="/" element={<RootRedirect />} />
-      </Routes>
+      <FitGenerationProvider>
+        <Routes>
+          <Route path="/fits" element={<FitsPage />} />
+          <Route path="/:slug" element={<App />} />
+          <Route path="/" element={<RootRedirect />} />
+        </Routes>
+      </FitGenerationProvider>
     </BrowserRouter>
   </StrictMode>,
 )

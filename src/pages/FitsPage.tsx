@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { Fit, FitItem } from '../types'
-import { fetchFits, deleteFit, createFit, saveFit, updateFit } from '../api'
+import { fetchFits, deleteFit } from '../api'
 import { useAuth } from '../hooks/useAuth'
+import { useFitGeneration } from '../contexts/FitGeneration'
 import Header from '../components/Header'
 import FitBuilder from '../components/FitBuilder'
 import Menu from '../components/Menu'
@@ -10,29 +11,25 @@ import Spinner from '../components/Spinner'
 import Toast from '../components/Toast'
 import type { ToastVariant } from '../components/Toast'
 
-// Client-side loading state for a fit being generated. `existingId` set = regenerating
-// an existing fit (spinner overlays that card); unset = a brand-new fit (standalone card).
-type PendingFit = { tempId: string; name?: string; items: FitItem[]; existingId?: string }
-
 export default function FitsPage() {
   const { user, token, isOwner, userClosets, allClosets, login, logout } = useAuth()
+  // Generation/polling lives in the provider above the router, so it keeps running (and toasts
+  // its outcome) even after you navigate away from /fits. `pending` survives navigation too.
+  const { pending, generate, subscribe } = useFitGeneration()
   const [fits, setFits] = useState<Fit[]>([])
   const [loading, setLoading] = useState(true)
   const [building, setBuilding] = useState(false)
   const [editingFit, setEditingFit] = useState<Fit | null>(null)
-  const [pending, setPending] = useState<PendingFit[]>([])
   const [lightboxFit, setLightboxFit] = useState<Fit | null>(null)
   const [lightboxItem, setLightboxItem] = useState<FitItem | null>(null)
   const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
   const [fitParam] = useState(() => new URLSearchParams(window.location.search).get('fit'))
-  // Cancels in-flight fit-generation polls when the page unmounts (avoids stale fetches/setState).
-  // Create the controller inside the effect so StrictMode's mount→unmount→remount cycle hands the
-  // live mount a fresh, un-aborted controller (a ref initialized once would stay aborted after remount).
-  const abortRef = useRef<AbortController>(new AbortController())
-  useEffect(() => {
-    abortRef.current = new AbortController()
-    return () => abortRef.current.abort()
-  }, [])
+
+  // Patch the local list when a generation finishes while this page is mounted. If it finishes
+  // after we've unmounted, the fit is already persisted server-side and shows up on next fetch.
+  useEffect(() => subscribe(({ fit, existingId }) => {
+    setFits(prev => (existingId ? prev.map(f => (f.id === fit.id ? fit : f)) : [fit, ...prev]))
+  }), [subscribe])
 
   const showToast = (msg: string, variant: ToastVariant = 'success') => {
     setToast({ msg, variant })
@@ -53,24 +50,10 @@ export default function FitsPage() {
       .catch(() => setLoading(false))
   }, [fitParam])
 
-  // Generate runs in the background: close the builder, show a loading card, fill it in when done.
+  // Generate runs in the provider (above the router): close the builder, show a loading card.
+  // The provider persists the fit and toasts the outcome even if we navigate away mid-job.
   const handleGenerate = (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean) => {
-    const tempId = crypto.randomUUID()
-    setPending(prev => [{ tempId, name, items, existingId: existingFit?.id }, ...prev])
-    void (async () => {
-      try {
-        const base64 = await createFit(items, context, token, stub, abortRef.current.signal)
-        const fit = existingFit
-          ? await updateFit(existingFit.id, { name, items, imageBase64: base64, context }, token)
-          : await saveFit(name, items, base64, token, context)
-        setFits(prev => (existingFit ? prev.map(f => (f.id === fit.id ? fit : f)) : [fit, ...prev]))
-      } catch {
-        if (abortRef.current.signal.aborted) return
-        showToast('Failed to generate fit.', 'error')
-      } finally {
-        setPending(prev => prev.filter(p => p.tempId !== tempId))
-      }
-    })()
+    generate(name, items, context, token, existingFit, stub)
   }
 
   const handleDelete = async (fit: Fit) => {
