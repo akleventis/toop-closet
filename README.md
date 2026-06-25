@@ -33,12 +33,14 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 
 ### Stack
 
-- **React 19 + Vite** — frontend, hosted on Netlify
-- **Netlify Functions** — serverless backend (Node.js)
-- **AWS S3** — item inventory + images
-- **Netlify Identity** — invite-only auth
-- **withoutbg on Synology NAS** — self-hosted AI background removal, exposed via Tailscale Funnel
-- **OpenAI (gpt-4o image generation)** — composes "fits" onto a base subject
+| Layer | Tech | Role |
+|---|---|---|
+| **Frontend** | React 19 + Vite + Tailwind v4 | UI, hosted on Netlify |
+| **Backend** | Netlify Functions (Node.js) | serverless API + background jobs |
+| **Storage** | AWS S3 | item inventory + images |
+| **Auth** | Netlify Identity | invite-only JWT auth |
+| **Bg removal** | [withoutbg](https://github.com/withoutbg/withoutbg) on a Synology NAS | self-hosted AI cutouts, exposed via Tailscale Funnel |
+| **Fit generation** | OpenAI `gpt-4o` image generation | composes "fits" onto a base subject |
 
 ---
 
@@ -49,15 +51,30 @@ Each closet has a unique slug (e.g. `toop`) that doubles as its URL path (`/toop
 **S3 layout:**
 
 ```
-toop-closet/
-  inventory/{slug}.json          item list for each closet
-  users/{slug}/config.json       closet config — owner, categories, display name
-  _users/{netlify-sub}.json      index of closets owned by each user
-  fits/index.json                generated fits
-  fits/_jobs/{jobId}.json        transient fit-generation jobs
-  clothing/{slug}/{uuid}         item images (public read)
-  clothing/fits-{id}.webp        composed fit images (public read)
+toop-closet/                        ← the bucket
+│
+├── inventory/
+│   └── {slug}.json                 ·  item list for one closet
+│
+├── users/
+│   └── {slug}/config.json          ·  owner email · categories · display name
+│
+├── _users/
+│   └── {netlify-sub}.json          ·  closets owned by one user (login nav index)
+│
+├── fits/
+│   ├── items/{id}.json             ·  one object per fit  ─┐ no shared index,
+│   └── _jobs/{jobId}.json          ·  transient jobs       ┘ so concurrent
+│                                                             writes can't race
+└── clothing/
+    ├── {slug}/{uuid}               ·  item photos          (public read)
+    └── fits-{id}.webp              ·  composed fit images  (public read)
 ```
+
+> Each fit is its own object under `fits/items/` rather than rows in one big
+> `index.json` — generating or editing fits only ever touches independent keys,
+> so two creates can't clobber each other. Job files under `fits/_jobs/` are
+> deleted as soon as the browser reads a terminal result.
 
 **Data shapes:**
 
@@ -111,9 +128,39 @@ DELETE /clothes     →  auth + ownership check → filter item from array → w
 
 Each item has a permanent UUID. Clicking "Copy link" on any card writes `/{slug}?item={first-8-chars-of-uuid}` to the clipboard. On load, the app finds the matching item by ID prefix, opens its lightbox, and strips the param from the URL. No new data is stored — the ID has existed since the item was created. Fits share the same way via `/fits?fit={first-8-chars}`.
 
-**AI fits:**
+---
 
-Pick items across closets and the app renders them worn together on a base subject (a photo of you or a mannequin). Generation can outrun a normal function's timeout, so it runs in a Netlify *background* function (15-min limit): the request returns instantly with a job ID, the function writes its result to `fits/_jobs/{jobId}.json`, and the browser polls until the image lands. The composed image gets background-removed too, then is stored at a fixed `clothing/fits-{id}.webp` — regenerating overwrites it, so the URL carries a `?v=` cache-bust to dodge stale browser caches.
+### AI fits
+
+Pick items across your closets, add an optional styling note, and the app renders them **worn together on a base subject** — a photo of you or a mannequin (`public/base-subject.webp`). OpenAI's `gpt-4o` image generation is fed the base subject plus each item's image and composes a single outfit. The result is then run through the same background-removal pipeline as item photos for a clean, consistent look, and stored at a fixed `clothing/fits-{id}.webp`.
+
+Generation easily outruns a normal function's 26s timeout, so it runs in a Netlify **background function** (15-min limit) and the whole flow is **fire-and-forget**: the UI drops a loading card the moment you hit *Generate* and swaps in the finished image whenever it lands — navigate away and back, it's still working.
+
+```
+┌─ browser ────────────────────────────────────────────────────────────┐
+│  pick items  +  styling note   →   Generate (fire-and-forget)        │
+└──────────────────────────────────────────────────────────────────────┘
+   │ POST + jobId                                           ▲
+   ▼ 202 instant                                            │ poll /fit-status (2s)
+┌─ create-fit-background ──────────────────────────────────────────────┐
+│                          Netlify background fn · 15-min limit        │
+│                                                                      │
+│   base-subject.webp ─┐                                               │
+│                      ├─▶  OpenAI gpt-4o image_generation             │
+│   item image URLs ───┘                                               │
+│                                        │                             │
+│                                        ▼                             │
+│                         withoutbg on NAS  (bg removed)               │
+│                                        │  falls back to raw if down  │
+│                                        ▼                             │
+│                             fits/_jobs/{jobId}.json                  │
+└──────────────────────────────────────────────────────────────────────┘
+   │ on success
+   ▼
+   clothing/fits-{id}.webp   +   fits/items/{id}.json
+```
+
+Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries a `?v=` cache-bust to dodge stale browser caches. The `withoutbg` step below is the same pipeline used for individual item photos.
 
 ---
 
