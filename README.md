@@ -187,6 +187,8 @@ When bg removal is toggled on, the item saves immediately with the raw image and
 
 ---
 
+https://github.com/user-attachments/assets/e52cdc9c-ac42-45f1-858b-7072b894cf0a
+
 ### Local dev
 
 ```bash
