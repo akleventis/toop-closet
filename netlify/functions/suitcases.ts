@@ -24,6 +24,16 @@ async function listSuitcases(): Promise<Suitcase[]> {
   return suitcases.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
+// A suitcase's fits live only on the suitcase, so deleting it deletes them too.
+// Removes the fit JSON only (composed images stay orphaned, like fits.ts DELETE).
+async function deleteSuitcaseFits(suitcaseId: string): Promise<void> {
+  const out = await s3.send(new ListObjectsV2Command({ Bucket, Prefix: 'fits/items/' }))
+  const keys = (out.Contents ?? []).map(o => o.Key!).filter(k => k.endsWith('.json'))
+  const fits = await Promise.all(keys.map(k => readJson<{ suitcaseId?: string }>(k)))
+  const stale = keys.filter((_, i) => fits[i]?.suitcaseId === suitcaseId)
+  await Promise.all(stale.map(k => s3.send(new DeleteObjectCommand({ Bucket, Key: k }))))
+}
+
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   if (event.httpMethod === 'GET') {
     const suitcases = await listSuitcases()
@@ -35,7 +45,8 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
   }
 
-  // Suitcases are an owner/collaborator feature, gated by the fit allowlist (mirrors fits.ts).
+  // Creating a suitcase needs the fit allowlist; editing/deleting one is owner-scoped below
+  // (unlike fits, which are collaborative — a suitcase is personal trip-planning).
   if (!canCreateFits(netlifyUser.email)) {
     return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
@@ -74,6 +85,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
     const existing = await readJson<Suitcase>(suitcaseKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
+    if (existing.ownerEmail !== netlifyUser.email) {
+      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
+    }
 
     const updated: Suitcase = {
       ...existing,
@@ -89,8 +103,11 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     const { id } = JSON.parse(event.body) as { id: string }
     const existing = await readJson<Suitcase>(suitcaseKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
-    // Deleting a suitcase does NOT delete its fits — they stay in /fits, just lose grouping.
+    if (existing.ownerEmail !== netlifyUser.email) {
+      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
+    }
     await s3.send(new DeleteObjectCommand({ Bucket, Key: suitcaseKey(id) }))
+    await deleteSuitcaseFits(id) // fits are siloed to the suitcase — cascade-delete them
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 

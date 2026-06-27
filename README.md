@@ -173,7 +173,7 @@ Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries 
 
 Packing for a trip? Make a **suitcase** — a named pile of clothes you "pack" from any closet — then generate fits using *only what's in the bag*. Each suitcase gets its own page listing its packed items and the fits made from them; the fit builder opened from there is restricted to the packed set, so you're styling from what you actually brought.
 
-A suitcase is structurally a fit minus the generated image — packed items are the same `{ itemId, slug, name, imageUrl }` snapshots, stored one-object-per-suitcase under `suitcases/items/` (no shared index, same race-free pattern as fits). Fits generated from a suitcase carry its `suitcaseId`, so they show up both on the suitcase's page and in the global `/fits` list. The generation flow is identical to regular fits — just scoped to the packed items.
+A suitcase is structurally a fit minus the generated image — packed items are the same `{ itemId, slug, name, imageUrl }` snapshots, stored one-object-per-suitcase under `suitcases/items/` (no shared index, same race-free pattern as fits). Fits generated from a suitcase carry its `suitcaseId` and are **siloed to that suitcase** — they show only on its page, not in the global `/fits` list, and deleting the suitcase deletes them too. The generation flow is otherwise identical to regular fits — just scoped to the packed items.
 
 ---
 

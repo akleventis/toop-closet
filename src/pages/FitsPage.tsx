@@ -23,14 +23,16 @@ export default function FitsPage() {
 
   // Patch the local list when a generation finishes while this page is mounted. If it finishes
   // after we've unmounted, the fit is already persisted server-side and shows up on next fetch.
+  // Suitcase fits are siloed to their suitcase, so they never join this global list.
   useEffect(() => subscribe(({ fit, existingId }) => {
+    if (fit.suitcaseId) return
     setFits(prev => (existingId ? prev.map(f => (f.id === fit.id ? fit : f)) : [fit, ...prev]))
   }), [subscribe])
 
   useEffect(() => {
     fetchFits()
       .then(data => {
-        setFits(data)
+        setFits(data.filter(f => !f.suitcaseId))
         setLoading(false)
         if (fitParam) {
           window.history.replaceState({}, '', '/fits')
