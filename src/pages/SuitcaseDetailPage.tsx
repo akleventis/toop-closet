@@ -23,6 +23,7 @@ export default function SuitcaseDetailPage() {
   const [packing, setPacking] = useState(false)
   const [editingFit, setEditingFit] = useState<Fit | null>(null)
   const [lightboxItem, setLightboxItem] = useState<FitItem | null>(null)
+  const [fitParam] = useState(() => new URLSearchParams(window.location.search).get('fit'))
 
   // Patch the local fit list when a generation for THIS suitcase finishes while mounted.
   useEffect(() => subscribe(({ fit, existingId }) => {
@@ -35,10 +36,11 @@ export default function SuitcaseDetailPage() {
       .then(([suitcases, allFits]) => {
         setSuitcase(suitcases.find(s => s.id === id) ?? null)
         setFits(allFits.filter(f => f.suitcaseId === id))
+        if (fitParam) window.history.replaceState({}, '', `/suitcases/${id}`)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, fitParam])
 
   const handleGenerate = (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean, suitcaseId?: string) => {
     generate(name, items, context, token, existingFit, stub, suitcaseId)
@@ -157,6 +159,7 @@ export default function SuitcaseDetailPage() {
                 pending={standalonePending}
                 regeneratingIds={regeneratingIds}
                 isOwner={isOwner}
+                openFitId={fitParam ?? undefined}
                 onEdit={setEditingFit}
                 onDelete={handleDeleteFit}
                 showToast={showToast}
