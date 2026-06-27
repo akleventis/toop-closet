@@ -6,11 +6,10 @@ import { JSON_HEADERS } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type FitItem = { itemId: string; slug: string; name: string; imageUrl: string }
-type Fit = { id: string; name?: string; imageUrl: string; items: FitItem[]; context?: string; createdAt: string; ownerEmail: string }
+type Fit = { id: string; name?: string; imageUrl: string; items: FitItem[]; context?: string; suitcaseId?: string; createdAt: string; ownerEmail: string }
 
-// Each fit is its own object — writes touch independent keys, so concurrent
-// creates/edits can't race (no shared index to clobber). The list endpoint fans
-// out across the prefix instead.
+// Each fit is its own object — independent keys, so concurrent creates/edits can't race.
+// The list endpoint fans out across the prefix instead of reading a shared index.
 const FITS_PREFIX = 'fits/items/'
 const fitKey = (id: string) => `${FITS_PREFIX}${id}.json`
 const CONTEXT_MAX = 500 // mirrors create-fit-background's server-side cap
@@ -43,7 +42,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
     }
     if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
-    const { name, items, imageBase64, context } = JSON.parse(event.body) as { name?: string; items: FitItem[]; imageBase64: string; context?: string }
+    const { name, items, imageBase64, context, suitcaseId } = JSON.parse(event.body) as { name?: string; items: FitItem[]; imageBase64: string; context?: string; suitcaseId?: string }
     if (!Array.isArray(items) || items.length === 0) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'items must be a non-empty array' }) }
     }
@@ -55,6 +54,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     }
     if (context !== undefined && (typeof context !== 'string' || context.length > CONTEXT_MAX)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: `context must be a string (max ${CONTEXT_MAX} chars)` }) }
+    }
+    if (suitcaseId !== undefined && typeof suitcaseId !== 'string') {
+      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'suitcaseId must be a string' }) }
     }
 
     const id = randomBytes(6).toString('hex')
@@ -74,6 +76,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       imageUrl: `${s3PublicUrl(imageKey)}?v=${Date.now()}`,
       items,
       ...(context?.trim() ? { context: context.trim() } : {}),
+      ...(suitcaseId ? { suitcaseId } : {}),
       ownerEmail: netlifyUser.email,
       createdAt: new Date().toISOString(),
     }
@@ -84,7 +87,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   if (event.httpMethod === 'PUT') {
     if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
-    const { id, name, items, imageBase64, context } = JSON.parse(event.body) as { id: string; name?: string; items?: FitItem[]; imageBase64?: string; context?: string }
+    const { id, name, items, imageBase64, context, suitcaseId } = JSON.parse(event.body) as { id: string; name?: string; items?: FitItem[]; imageBase64?: string; context?: string; suitcaseId?: string }
     if (name !== undefined && (typeof name !== 'string' || name.length > 60)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a string (max 60 chars)' }) }
     }
@@ -96,6 +99,9 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     }
     if (context !== undefined && (typeof context !== 'string' || context.length > CONTEXT_MAX)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: `context must be a string (max ${CONTEXT_MAX} chars)` }) }
+    }
+    if (suitcaseId !== undefined && typeof suitcaseId !== 'string') {
+      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'suitcaseId must be a string' }) }
     }
 
     // Fits are collaborative: anyone in the fit allowlist (OWNER_EMAIL + FITS_ALLOWED_EMAILS)
@@ -122,6 +128,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       ...(name !== undefined ? { name: name.trim() || undefined } : {}),
       ...(items !== undefined ? { items } : {}),
       ...(context !== undefined ? { context: context.trim() || undefined } : {}),
+      ...(suitcaseId !== undefined ? { suitcaseId: suitcaseId || undefined } : {}),
       imageUrl,
     }
     await writeJson(fitKey(id), updated)

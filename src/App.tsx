@@ -7,9 +7,9 @@ import ClothingCard from './components/ClothingCard'
 import ItemModal from './components/ItemModal'
 import Modal from './components/Modal'
 import Toast from './components/Toast'
-import type { ToastVariant } from './components/Toast'
 import { DEFAULT_CATEGORIES } from './constants'
 import { useAuth } from './hooks/useAuth'
+import { useToast } from './hooks/useToast'
 import {
   fetchItems, createItem, updateItem, deleteItem,
   removeBackground, uploadImage,
@@ -34,7 +34,7 @@ export default function App() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
   const [closetName, setClosetName] = useState<string | undefined>(undefined)
-  const [toast, setToast] = useState<{ msg: string; variant: ToastVariant } | null>(null)
+  const { toast, showToast } = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [sharedItemId, setSharedItemId] = useState<string | null>(null)
   const [itemParam] = useState(() => new URLSearchParams(window.location.search).get('item'))
@@ -85,11 +85,6 @@ export default function App() {
   }, [items, category, categories, searchQuery])
 
   if (!slug) return null
-
-  const showToast = (msg: string, variant: ToastVariant = 'success') => {
-    setToast({ msg, variant })
-    setTimeout(() => setToast(null), variant === 'error' ? 6000 : 2200)
-  }
 
   const startBgRemoval = (item: ClothingItem, bgFiles: (File | null)[]) => {
     setProcessingBg(prev => new Set(prev).add(item.id))

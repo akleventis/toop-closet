@@ -9,20 +9,29 @@ type Props = {
   closets: UserCloset[]
   token: string
   editingFit?: Fit
+  // Pool mode (suitcases): restrict the picker to these packed items instead of browsing closets.
+  pool?: FitItem[]
+  suitcaseId?: string
+  // Pack mode (suitcases): browse closets and multi-select items to save as the suitcase's
+  // packed set. `initialItems` pre-selects what's already packed; `onAddItems` persists the selection.
+  packMode?: boolean
+  initialItems?: FitItem[]
+  onAddItems?: (items: FitItem[]) => Promise<void>
   // Kick off (re)generation - `stub` (dev only) swaps the AI call for a placeholder image.
-  onGenerate: (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean) => void
+  onGenerate?: (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean, suitcaseId?: string) => void
   // Save name/item edits against the existing image (edit mode, no regenerate).
   onSaved?: (fit: Fit) => void
   onClose: () => void
 }
 
-export default function FitBuilder({ closets, token, editingFit, onGenerate, onSaved, onClose }: Props) {
+export default function FitBuilder({ closets, token, editingFit, pool, suitcaseId, packMode, initialItems, onAddItems, onGenerate, onSaved, onClose }: Props) {
+  const poolMode = !!pool
   const [activeSlug, setActiveSlug] = useState(closets[0]?.slug ?? '')
   const [itemCache, setItemCache] = useState<Record<string, ClothingItem[]>>({})
   const [categoryCache, setCategoryCache] = useState<Record<string, string[]>>({})
   const loadedSlugs = useRef(new Set<string>())
   const [loadingItems, setLoadingItems] = useState(false)
-  const [selected, setSelected] = useState<FitItem[]>(editingFit?.items ?? [])
+  const [selected, setSelected] = useState<FitItem[]>(editingFit?.items ?? initialItems ?? [])
   const [fitName, setFitName] = useState(editingFit?.name ?? '')
   const [context, setContext] = useState(editingFit?.context ?? '') // styling direction; persisted with the fit so it pre-fills on edit
   const [saving, setSaving] = useState(false)
@@ -30,7 +39,7 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
   const [stub, setStub] = useState(false) // dev-only: use placeholder image instead of AI
 
   useEffect(() => {
-    if (!activeSlug || loadedSlugs.current.has(activeSlug)) return
+    if (poolMode || !activeSlug || loadedSlugs.current.has(activeSlug)) return
     loadedSlugs.current.add(activeSlug)
     setLoadingItems(true)
     Promise.all([fetchItems(activeSlug), fetchConfig(activeSlug)])
@@ -42,27 +51,47 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
         setItemCache(prev => ({ ...prev, [activeSlug]: [] }))
       })
       .finally(() => setLoadingItems(false))
-  }, [activeSlug])
+  }, [activeSlug, poolMode])
 
   const activeCategories = categoryCache[activeSlug] ?? []
   const activeItems = [...(itemCache[activeSlug] ?? [])].sort(
     (a, b) => activeCategories.indexOf(a.category) - activeCategories.indexOf(b.category)
   )
 
-  const isSelected = (item: ClothingItem) => selected.some(s => s.itemId === item.id && s.slug === activeSlug)
+  // Both modes render a grid of FitItem snapshots: pool mode shows the packed items directly,
+  // closet mode projects the active closet's ClothingItems into the same shape.
+  const gridItems: FitItem[] = poolMode
+    ? pool!
+    : activeItems.map(it => ({ itemId: it.id, slug: activeSlug, name: it.name, imageUrl: getImages(it)[0] ?? '' }))
 
-  const toggle = (item: ClothingItem) => {
+  const isSelected = (fi: FitItem) => selected.some(s => s.itemId === fi.itemId && s.slug === fi.slug)
+
+  const toggle = (fi: FitItem) => {
     setSelected(prev => {
-      const already = prev.findIndex(s => s.itemId === item.id && s.slug === activeSlug)
+      const already = prev.findIndex(s => s.itemId === fi.itemId && s.slug === fi.slug)
       if (already >= 0) return prev.filter((_, i) => i !== already)
-      return [...prev, { itemId: item.id, slug: activeSlug, name: item.name, imageUrl: getImages(item)[0] ?? '' }]
+      return [...prev, fi]
     })
   }
 
   // Hand the job to the parent and close — the loading card appears on /fits.
   const handleGenerate = () => {
-    onGenerate(fitName.trim() || undefined, selected, context.trim(), editingFit, IS_DEV && stub)
+    onGenerate?.(fitName.trim() || undefined, selected, context.trim(), editingFit, IS_DEV && stub, suitcaseId)
     onClose()
+  }
+
+  // Pack mode: persist the selected items as the suitcase's packed set.
+  const handlePack = async () => {
+    if (!onAddItems) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onAddItems(selected)
+      onClose()
+    } catch {
+      setError('Failed to save. Please try again.')
+      setSaving(false)
+    }
   }
 
   // Edit mode: persist name/item changes against the existing image — no regenerate.
@@ -91,7 +120,7 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-[--border] flex-none">
-          <h2 className="text-xs font-semibold text-[--text]">{editingFit ? 'Edit fit' : 'Create fit'}</h2>
+          <h2 className="text-xs font-semibold text-[--text]">{packMode ? 'Pack items' : editingFit ? 'Edit fit' : 'Create fit'}</h2>
           <button
             onClick={onClose}
             disabled={saving}
@@ -103,7 +132,7 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
 
         {/* Scrollable content area */}
         <div className="flex flex-col flex-1 min-h-0">
-          {closets.length > 1 && (
+          {!poolMode && closets.length > 1 && (
             <div className="flex gap-1 px-4 pt-3 pb-2 overflow-x-auto scrollbar-none flex-none">
               {closets.map(c => (
                 <button
@@ -119,15 +148,15 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
           <div className="overflow-y-auto flex-1 min-h-0 p-3">
             {loadingItems ? (
               <p className="text-xs text-[--muted] text-center py-8">Loading…</p>
-            ) : activeItems.length === 0 ? (
-              <p className="text-xs text-[--muted] text-center py-8">No items in this closet.</p>
+            ) : gridItems.length === 0 ? (
+              <p className="text-xs text-[--muted] text-center py-8">{poolMode ? 'Nothing packed yet.' : 'No items in this closet.'}</p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {activeItems.map(item => {
-                  const img = getImages(item)[0]
+                {gridItems.map(item => {
+                  const img = item.imageUrl
                   const sel = isSelected(item)
                   return (
-                    <button key={item.id} onClick={() => toggle(item)} className="flex flex-col gap-0.5">
+                    <button key={`${item.slug}-${item.itemId}`} onClick={() => toggle(item)} className="flex flex-col gap-0.5">
                       <div className={`relative aspect-square w-full rounded overflow-hidden border-2 transition-colors ${sel ? 'border-[--text]' : 'border-transparent'}`}>
                         <img src={img} alt={item.name} className="w-full h-full object-cover" />
                         {sel && (
@@ -169,6 +198,24 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
 
         {error && <p className="text-[--danger] text-xs px-4 pb-2 flex-none">{error}</p>}
 
+        {packMode ? (
+          <div className="px-4 py-2.5 border-t border-[--border] flex justify-end gap-2 flex-none">
+            <button
+              onClick={onClose}
+              disabled={saving}
+              className="px-3 py-1.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handlePack}
+              disabled={saving}
+              className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40"
+            >
+              {saving ? 'Saving…' : `Save${selected.length > 0 ? ` (${selected.length})` : ''}`}
+            </button>
+          </div>
+        ) : (
         <div className="px-4 py-2.5 border-t border-[--border] flex flex-col gap-2.5 flex-none">
           <input
             value={fitName}
@@ -231,6 +278,7 @@ export default function FitBuilder({ closets, token, editingFit, onGenerate, onS
             </div>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

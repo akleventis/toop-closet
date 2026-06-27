@@ -1,4 +1,4 @@
-import type { ClothingItem, SavePayload, UserConfig, UserCloset, OwnProfile, Fit, FitItem } from './types'
+import type { ClothingItem, SavePayload, UserConfig, UserCloset, OwnProfile, Fit, FitItem, Suitcase } from './types'
 
 const BASE = '/.netlify/functions'
 
@@ -180,17 +180,17 @@ export async function fetchFits(): Promise<Fit[]> {
   return res.json() as Promise<Fit[]>
 }
 
-export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string): Promise<Fit> {
+export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string, suitcaseId?: string): Promise<Fit> {
   const res = await fetch(`${BASE}/fits`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ name, items, imageBase64, context }),
+    body: JSON.stringify({ name, items, imageBase64, context, suitcaseId }),
   })
   if (!res.ok) throw new Error('Failed to save fit')
   return res.json() as Promise<Fit>
 }
 
-export async function updateFit(id: string, updates: { name?: string; items?: FitItem[]; imageBase64?: string; context?: string }, token: string): Promise<Fit> {
+export async function updateFit(id: string, updates: { name?: string; items?: FitItem[]; imageBase64?: string; context?: string; suitcaseId?: string }, token: string): Promise<Fit> {
   const res = await fetch(`${BASE}/fits`, {
     method: 'PUT',
     headers: authHeaders(token),
@@ -207,6 +207,41 @@ export async function deleteFit(id: string, token: string): Promise<void> {
     body: JSON.stringify({ id }),
   })
   if (!res.ok) throw new Error('Failed to delete fit')
+}
+
+export async function fetchSuitcases(): Promise<Suitcase[]> {
+  const res = await fetch(`${BASE}/suitcases`)
+  if (!res.ok) throw new Error('Failed to fetch suitcases')
+  return res.json() as Promise<Suitcase[]>
+}
+
+export async function createSuitcase(name: string | undefined, items: FitItem[], token: string): Promise<Suitcase> {
+  const res = await fetch(`${BASE}/suitcases`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ name, items }),
+  })
+  if (!res.ok) throw new Error('Failed to create suitcase')
+  return res.json() as Promise<Suitcase>
+}
+
+export async function updateSuitcase(id: string, updates: { name?: string; items?: FitItem[] }, token: string): Promise<Suitcase> {
+  const res = await fetch(`${BASE}/suitcases`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ id, ...updates }),
+  })
+  if (!res.ok) throw new Error('Failed to update suitcase')
+  return res.json() as Promise<Suitcase>
+}
+
+export async function deleteSuitcase(id: string, token: string): Promise<void> {
+  const res = await fetch(`${BASE}/suitcases`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+    body: JSON.stringify({ id }),
+  })
+  if (!res.ok) throw new Error('Failed to delete suitcase')
 }
 
 export async function removeBackground(file: File, slug: string, token: string): Promise<File> {

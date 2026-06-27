@@ -21,7 +21,8 @@ type Props = {
 
 export default function Header({ slug = '', closets, user, onLogin, onLogout, onCreateCloset, onRenameCloset, onDeleteCloset, backTo }: Props) {
   const location = useLocation()
-  const onFitsPage = location.pathname === '/fits'
+  // Fits + suitcases pages share the "← Back to closets" treatment (no closet nav).
+  const onSubPage = location.pathname === '/fits' || location.pathname.startsWith('/suitcases')
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
@@ -59,7 +60,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
       <header className="px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1 min-w-0">
-            {onFitsPage ? (
+            {onSubPage ? (
               <Link
                 to={backToCloset}
                 className="flex items-center gap-1 text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
@@ -104,6 +105,12 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                     className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
                   >
                     fits
+                  </Link>
+                  <Link
+                    to="/suitcases"
+                    className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
+                  >
+                    suitcases
                   </Link>
                 </div>
               </>

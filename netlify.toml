@@ -23,6 +23,6 @@
     X-Content-Type-Options = "nosniff"
 
 [dev]
-  command = "npm run dev"
+  framework = "vite"
   targetPort = 5173
   port = 8888

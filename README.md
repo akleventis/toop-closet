@@ -19,6 +19,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 - Up to 4 photos per item, swipeable in both card and lightbox views
 - Notes visible in lightbox
 - Browse "fits" — AI-composed outfits — on the shared `/fits` page
+- Browse "suitcases" — packed trip collections — and the fits made from each
 
 **Managing (owner login required)**
 - Add, edit, and delete items — name, tag, up to 4 photos, short note
@@ -28,6 +29,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 - Multiple closets: create, rename, delete
 - Transfer items between your own closets
 - Build "fits": pick items across closets and generate an image of them worn together on a base subject (you or a mannequin) — regenerate, rename, or edit anytime
+- Pack a "suitcase" for a trip and generate fits from only the items you packed
 
 ---
 
@@ -66,6 +68,9 @@ toop-closet/                        ← the bucket
 │   ├── items/{id}.json             ·  one object per fit  ─┐ no shared index,
 │   └── _jobs/{jobId}.json          ·  transient jobs       ┘ so concurrent
 │                                                             writes can't race
+├── suitcases/
+│   └── items/{id}.json             ·  one packed trip (item snapshots)
+│
 └── clothing/
     ├── {slug}/{uuid}               ·  item photos          (public read)
     └── fits-{id}.webp              ·  composed fit images  (public read)
@@ -161,6 +166,14 @@ Generation easily outruns a normal function's 26s timeout, so it runs in a Netli
 ```
 
 Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries a `?v=` cache-bust to dodge stale browser caches. The `withoutbg` step below is the same pipeline used for individual item photos.
+
+---
+
+### Suitcases
+
+Packing for a trip? Make a **suitcase** — a named pile of clothes you "pack" from any closet — then generate fits using *only what's in the bag*. Each suitcase gets its own page listing its packed items and the fits made from them; the fit builder opened from there is restricted to the packed set, so you're styling from what you actually brought.
+
+A suitcase is structurally a fit minus the generated image — packed items are the same `{ itemId, slug, name, imageUrl }` snapshots, stored one-object-per-suitcase under `suitcases/items/` (no shared index, same race-free pattern as fits). Fits generated from a suitcase carry its `suitcaseId`, so they show up both on the suitcase's page and in the global `/fits` list. The generation flow is identical to regular fits — just scoped to the packed items.
 
 ---
 
