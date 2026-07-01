@@ -1,10 +1,11 @@
 import type { HandlerEvent, NetlifyContext, NetlifyUser } from './types.js'
 
 function devUser(): NetlifyUser | null {
-  if (process.env.NETLIFY_DEV === 'true' && process.env.DEV_USER_EMAIL) {
+  // In local dev (netlify dev sets NETLIFY_DEV=true), act as the owner.
+  if (process.env.NETLIFY_DEV === 'true' && process.env.OWNER_EMAIL) {
     return {
-      email: process.env.DEV_USER_EMAIL,
-      sub: process.env.DEV_USER_SUB ?? 'dev-local',
+      email: process.env.OWNER_EMAIL,
+      sub: 'dev-local',
       app_metadata: {},
     }
   }
@@ -30,13 +31,4 @@ export async function requireAuthFromHeader(event: HandlerEvent): Promise<Netlif
   })
   if (!res.ok) return null
   return (await res.json()) as NetlifyUser
-}
-
-// Emails allowed to create fits: OWNER_EMAIL plus the comma-separated FITS_ALLOWED_EMAILS (case-insensitive). Separate from closet-item ownership.
-export function canCreateFits(email: string | undefined): boolean {
-  if (!email) return false
-  const allowed = [process.env.OWNER_EMAIL, ...(process.env.FITS_ALLOWED_EMAILS ?? '').split(',')]
-    .map(e => (e ?? '').trim().toLowerCase())
-    .filter(Boolean)
-  return allowed.includes(email.toLowerCase())
 }

@@ -2,7 +2,6 @@ import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { s3, s3PublicUrl } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { readClosetConfig } from '../lib/userConfig.js'
 import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
@@ -25,11 +24,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   if (!slug || typeof slug !== 'string' || !SLUG_RE.test(slug)) {
     return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
-  }
-
-  const closetConfig = await readClosetConfig(slug)
-  if (!closetConfig || closetConfig.ownerEmail !== user.email) {
-    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   if (event.httpMethod === 'DELETE') {

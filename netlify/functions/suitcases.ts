@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto'
 import { DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { s3, readJson, writeJson } from '../lib/s3.js'
-import { requireAuth, canCreateFits } from '../lib/auth.js'
+import { requireAuth } from '../lib/auth.js'
 import { JSON_HEADERS } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
@@ -40,15 +40,10 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(suitcases.map(toPublicSuitcase)) }
   }
 
+  // Any logged-in user has full access to all suitcases.
   const netlifyUser = requireAuth(context)
   if (!netlifyUser) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
-  }
-
-  // Creating a suitcase needs the fit allowlist; editing/deleting one is owner-scoped below
-  // (unlike fits, which are collaborative — a suitcase is personal trip-planning).
-  if (!canCreateFits(netlifyUser.email)) {
-    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   if (event.httpMethod === 'POST') {
@@ -85,9 +80,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
     const existing = await readJson<Suitcase>(suitcaseKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
-    if (existing.ownerEmail !== netlifyUser.email) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
-    }
 
     const updated: Suitcase = {
       ...existing,
@@ -103,9 +95,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     const { id } = JSON.parse(event.body) as { id: string }
     const existing = await readJson<Suitcase>(suitcaseKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
-    if (existing.ownerEmail !== netlifyUser.email) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
-    }
     await s3.send(new DeleteObjectCommand({ Bucket, Key: suitcaseKey(id) }))
     await deleteSuitcaseFits(id) // fits are siloed to the suitcase — cascade-delete them
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }

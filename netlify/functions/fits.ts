@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto'
 import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { s3, readJson, writeJson, s3PublicUrl } from '../lib/s3.js'
-import { requireAuth, canCreateFits } from '../lib/auth.js'
+import { requireAuth } from '../lib/auth.js'
 import { JSON_HEADERS } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
@@ -38,9 +38,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   }
 
   if (event.httpMethod === 'POST') {
-    if (!canCreateFits(netlifyUser.email)) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
-    }
     if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
     const { name, items, imageBase64, context, suitcaseId } = JSON.parse(event.body) as { name?: string; items: FitItem[]; imageBase64: string; context?: string; suitcaseId?: string }
     if (!Array.isArray(items) || items.length === 0) {
@@ -104,9 +101,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'suitcaseId must be a string' }) }
     }
 
-    // Fits are collaborative: anyone in the fit allowlist (OWNER_EMAIL + FITS_ALLOWED_EMAILS)
-    // can edit any fit, not just its creator. Mirrors POST's canCreateFits gate.
-    if (!canCreateFits(netlifyUser.email)) return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
+    // Any logged-in user can edit any fit.
     const existing = await readJson<Fit>(fitKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
 
@@ -139,9 +134,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
     const { id } = JSON.parse(event.body) as { id: string }
 
-    if (!canCreateFits(netlifyUser.email)) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
-    }
     const existing = await readJson<Fit>(fitKey(id))
     if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
     await s3.send(new DeleteObjectCommand({ Bucket, Key: fitKey(id) }))

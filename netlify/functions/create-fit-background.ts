@@ -1,7 +1,7 @@
 import OpenAI from 'openai'
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { requireAuthFromHeader, canCreateFits } from '../lib/auth.js'
+import { requireAuthFromHeader } from '../lib/auth.js'
 import { removeBackground, bgRemovalConfigured } from '../lib/bgRemoval.js'
 import { writeJson } from '../lib/s3.js'
 import { JSON_HEADERS } from '../lib/types.js'
@@ -43,7 +43,6 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
   try {
     const netlifyUser = await requireAuthFromHeader(event)
     if (!netlifyUser) return fail('Unauthorized')
-    if (!canCreateFits(netlifyUser.email)) return fail('Forbidden')
     if (!items?.length) return fail('items required')
 
     // Dev-only placeholder; double-gated on NETLIFY_DEV so a stray `stub:true` can't stub in prod.

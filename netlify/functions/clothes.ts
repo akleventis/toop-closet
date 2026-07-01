@@ -1,6 +1,5 @@
 import { readJson, writeJson } from '../lib/s3.js'
 import { requireAuth } from '../lib/auth.js'
-import { readClosetConfig } from '../lib/userConfig.js'
 import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
@@ -46,14 +45,10 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
+  // Any logged-in user has full write access across all closets.
   const user = requireAuth(context)
   if (!user) {
     return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
-  }
-
-  const closetConfig = await readClosetConfig(slug)
-  if (!closetConfig || closetConfig.ownerEmail !== user.email) {
-    return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
   }
 
   let body: Record<string, unknown>

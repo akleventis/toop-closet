@@ -117,7 +117,7 @@ toop-closet/                        ← the bucket
 
 **Auth:**
 
-Netlify Identity issues a JWT on login. Every write endpoint reads `ownerEmail` from the closet's config and checks it against `user.email` from the decoded JWT — no separate ACL table. In local dev, `requireAuth` returns a fake user from `DEV_USER_EMAIL` in `.env.local` so the full CRUD flow works without a real login.
+Netlify Identity issues a JWT on login. Access is flat: reads are public, and every write endpoint requires only a valid JWT — any logged-in user has full write access (Identity is invite-only, so that's the trusted user set). There's no per-closet ownership check and no ACL table; `ownerEmail` is still stored on records for provenance and the public-closet filter, but isn't checked for authorization. In local dev, `requireAuth` returns a fake user from `OWNER_EMAIL` in `.env.local` so the full CRUD flow works without a real login.
 
 **Read vs. write lifecycle:**
 
@@ -208,7 +208,7 @@ https://github.com/user-attachments/assets/e52cdc9c-ac42-45f1-858b-7072b894cf0a
 npx netlify dev   # http://localhost:8888
 ```
 
-Netlify Identity is bypassed in local dev — set `DEV_USER_EMAIL` in `.env.local` and the backend returns a fake authenticated user automatically. See `docs/CONFIG.md` for full setup.
+Netlify Identity is bypassed in local dev — set `OWNER_EMAIL` in `.env.local` and the backend returns a fake authenticated user automatically. See `docs/CONFIG.md` for full setup.
 
 ---
 

@@ -84,9 +84,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     if (!config) {
       return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
     }
-    if (config.ownerEmail !== netlifyUser.email) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
-    }
     const updated = { ...config }
     if (categories !== undefined) {
       if (
@@ -125,9 +122,6 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     const config = await readClosetConfig(delSlug)
     if (!config) {
       return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Closet not found' }) }
-    }
-    if (config.ownerEmail !== netlifyUser.email) {
-      return { statusCode: 403, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Forbidden' }) }
     }
     await Promise.all([
       s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_NAME, Key: `users/${delSlug}/config.json` })),
