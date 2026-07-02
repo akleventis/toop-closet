@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
+import { useOutsideClick } from '../hooks/useOutsideClick'
 
 export type MenuItem = {
   label: string
@@ -9,14 +10,7 @@ export type MenuItem = {
 export default function Menu({ items, align = 'right' }: { items: MenuItem[]; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false)
   const [hovered, setHovered] = useState<string | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
+  const ref = useOutsideClick<HTMLDivElement>(open, () => setOpen(false))
 
   return (
     <div ref={ref} className="relative">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Fit, FitItem } from '../types'
-import { fetchFits, deleteFit } from '../api'
+import { fetchFits, fetchFit, deleteFit } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { useFitGeneration } from '../contexts/fitGenerationContext'
@@ -10,7 +10,7 @@ import FitGrid from '../components/FitGrid'
 import Toast from '../components/Toast'
 
 export default function FitsPage() {
-  const { user, token, isOwner, userClosets, allClosets, login, logout } = useAuth()
+  const { user, token, isOwner, allClosets, backTo, activeWorkspace, login, logout } = useAuth()
   // Generation/polling lives in the provider above the router, so it keeps running (and toasts
   // its outcome) even after you navigate away from /fits. `pending` survives navigation too.
   const { pending, generate, subscribe } = useFitGeneration()
@@ -30,21 +30,25 @@ export default function FitsPage() {
   }), [subscribe])
 
   useEffect(() => {
-    fetchFits()
-      .then(data => {
-        setFits(data.filter(f => !f.suitcaseId))
-        setLoading(false)
-        if (fitParam) {
-          window.history.replaceState({}, '', '/fits')
+    fetchFits(activeWorkspace ?? undefined)
+      .then(async data => {
+        let list = data.filter(f => !f.suitcaseId)
+        // A shared fit from another workspace won't be in the scoped list — fetch it by id so the deep-link opens.
+        if (fitParam && !list.some(f => f.id.startsWith(fitParam))) {
+          const shared = await fetchFit(fitParam).catch(() => null)
+          if (shared) list = [shared, ...list]
         }
+        setFits(list)
+        setLoading(false)
+        if (fitParam) window.history.replaceState({}, '', '/fits')
       })
       .catch(() => setLoading(false))
-  }, [fitParam])
+  }, [fitParam, activeWorkspace])
 
   // Generate runs in the provider (above the router): close the builder, show a loading card.
   // The provider persists the fit and toasts the outcome even if we navigate away mid-job.
   const handleGenerate = (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean, suitcaseId?: string) => {
-    generate(name, items, context, token, existingFit, stub, suitcaseId)
+    generate(name, items, context, token, existingFit, stub, suitcaseId, activeWorkspace ?? undefined)
   }
 
   const handleDelete = async (fit: Fit) => {
@@ -58,10 +62,6 @@ export default function FitsPage() {
 
   const standalonePending = pending.filter(p => !p.existingId)
   const regeneratingIds = new Set(pending.filter(p => p.existingId).map(p => p.existingId!))
-
-  // "Back to closets": logged-in user → their own first closet; otherwise the first public closet.
-  const backTarget = userClosets[0] ?? allClosets[0]
-  const backTo = backTarget ? `/${backTarget.slug}` : '/'
 
   return (
     <div className="min-h-screen">

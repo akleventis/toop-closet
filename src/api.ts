@@ -95,11 +95,11 @@ export async function getOwnProfile(token: string): Promise<OwnProfile> {
   return res.json() as Promise<OwnProfile>
 }
 
-export async function createCloset(name: string, token: string): Promise<UserConfig> {
+export async function createCloset(name: string, token: string, workspace?: string): Promise<UserConfig> {
   const res = await fetch(`${BASE}/config`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, workspace }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({})) as { error?: string }
@@ -174,17 +174,25 @@ export async function createFit(items: FitItem[], context: string, token: string
   throw new Error('Fit generation timed out')
 }
 
-export async function fetchFits(): Promise<Fit[]> {
-  const res = await fetch(`${BASE}/fits`)
+export async function fetchFits(workspace?: string): Promise<Fit[]> {
+  const q = workspace ? `?workspace=${encodeURIComponent(workspace)}` : ''
+  const res = await fetch(`${BASE}/fits${q}`)
   if (!res.ok) throw new Error('Failed to fetch fits')
   return res.json() as Promise<Fit[]>
 }
 
-export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string, suitcaseId?: string): Promise<Fit> {
+// Single fit by exact id (unscoped) — so a shared /fits?fit= link opens regardless of active workspace.
+export async function fetchFit(id: string): Promise<Fit | null> {
+  const res = await fetch(`${BASE}/fits?id=${encodeURIComponent(id)}`)
+  if (!res.ok) throw new Error('Failed to fetch fit')
+  return ((await res.json()) as Fit[])[0] ?? null
+}
+
+export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string, suitcaseId?: string, workspace?: string): Promise<Fit> {
   const res = await fetch(`${BASE}/fits`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ name, items, imageBase64, context, suitcaseId }),
+    body: JSON.stringify({ name, items, imageBase64, context, suitcaseId, workspace }),
   })
   if (!res.ok) throw new Error('Failed to save fit')
   return res.json() as Promise<Fit>
@@ -209,17 +217,31 @@ export async function deleteFit(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete fit')
 }
 
-export async function fetchSuitcases(): Promise<Suitcase[]> {
-  const res = await fetch(`${BASE}/suitcases`)
+export async function fetchSuitcases(workspace?: string): Promise<Suitcase[]> {
+  const q = workspace ? `?workspace=${encodeURIComponent(workspace)}` : ''
+  const res = await fetch(`${BASE}/suitcases${q}`)
   if (!res.ok) throw new Error('Failed to fetch suitcases')
   return res.json() as Promise<Suitcase[]>
 }
 
-export async function createSuitcase(name: string | undefined, items: FitItem[], token: string): Promise<Suitcase> {
+// Single suitcase + its fits by id (unscoped) — so share links resolve regardless of active workspace.
+export async function fetchSuitcase(id: string): Promise<Suitcase | null> {
+  const res = await fetch(`${BASE}/suitcases?id=${encodeURIComponent(id)}`)
+  if (!res.ok) throw new Error('Failed to fetch suitcase')
+  return ((await res.json()) as Suitcase[])[0] ?? null
+}
+
+export async function fetchSuitcaseFits(suitcaseId: string): Promise<Fit[]> {
+  const res = await fetch(`${BASE}/fits?suitcaseId=${encodeURIComponent(suitcaseId)}`)
+  if (!res.ok) throw new Error('Failed to fetch suitcase fits')
+  return res.json() as Promise<Fit[]>
+}
+
+export async function createSuitcase(name: string | undefined, items: FitItem[], token: string, workspace?: string): Promise<Suitcase> {
   const res = await fetch(`${BASE}/suitcases`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ name, items }),
+    body: JSON.stringify({ name, items, workspace }),
   })
   if (!res.ok) throw new Error('Failed to create suitcase')
   return res.json() as Promise<Suitcase>

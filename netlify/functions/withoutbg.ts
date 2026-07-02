@@ -1,6 +1,6 @@
 import { requireAuth } from '../lib/auth.js'
 import { removeBackground, bgRemovalConfigured } from '../lib/bgRemoval.js'
-import { JSON_HEADERS } from '../lib/types.js'
+import { JSON_HEADERS, unauthorized, errorRes } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
@@ -10,15 +10,15 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   const netlifyUser = requireAuth(context)
   if (!netlifyUser) {
-    return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
+    return unauthorized()
   }
 
   if (!bgRemovalConfigured()) {
-    return { statusCode: 503, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Background removal not configured' }) }
+    return errorRes(503, 'Background removal not configured')
   }
 
   if (!event.body) {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Image body is required' }) }
+    return errorRes(400, 'Image body is required')
   }
 
   const imageBuffer = event.isBase64Encoded

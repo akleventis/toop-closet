@@ -2,10 +2,11 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import type { User } from 'netlify-identity-widget'
-import type { UserCloset } from '../types'
+import type { UserCloset, Workspace } from '../types'
 import Menu from './Menu'
 import type { MenuItem } from './Menu'
 import Modal from './Modal'
+import WorkspaceSwitcher from './WorkspaceSwitcher'
 
 type Props = {
   slug?: string
@@ -16,10 +17,13 @@ type Props = {
   onCreateCloset?: (name: string) => Promise<string>
   onRenameCloset?: () => void
   onDeleteCloset?: () => void
+  workspaces?: Workspace[]
+  activeWorkspace?: string | null
+  onSwitchWorkspace?: (email: string) => void
   backTo?: string
 }
 
-export default function Header({ slug = '', closets, user, onLogin, onLogout, onCreateCloset, onRenameCloset, onDeleteCloset, backTo }: Props) {
+export default function Header({ slug = '', closets, user, onLogin, onLogout, onCreateCloset, onRenameCloset, onDeleteCloset, workspaces = [], activeWorkspace, onSwitchWorkspace, backTo }: Props) {
   const location = useLocation()
   // Fits + suitcases pages share the "← Back to closets" treatment (no closet nav).
   const onSubPage = location.pathname === '/fits' || location.pathname.startsWith('/suitcases')
@@ -28,6 +32,8 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
   const [createError, setCreateError] = useState<string | null>(null)
   const [createLoading, setCreateLoading] = useState(false)
   const navigate = useNavigate()
+
+  const showSwitcher = !onSubPage && workspaces.length > 1 && !!onSwitchWorkspace
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
@@ -69,6 +75,9 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
               </Link>
             ) : (
               <>
+                {showSwitcher && (
+                  <WorkspaceSwitcher workspaces={workspaces} activeWorkspace={activeWorkspace} onSwitch={onSwitchWorkspace!} />
+                )}
                 <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none min-w-0">
                   {closets.map(c => {
                     const isActive = c.slug === slug

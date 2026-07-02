@@ -48,7 +48,7 @@ https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 
 ### How it works
 
-Each closet has a unique slug (e.g. `toop`) that doubles as its URL path (`/toop`) and its S3 key prefix. The root redirects to my personal closet. Anyone can browse; owners log in to manage items and categories. Accounts are invite-only — I can create one for someone and they get their own separate closets.
+Each closet gets an auto-generated slug — a short hex hash (e.g. `a472ae`) — that doubles as its URL path (`/a472ae`) and its S3 key prefix. Anyone can browse; managing needs login. Accounts are invite-only, and each person gets their own **workspace** of closets/fits/suitcases — a workspace can grant **seats** to collaborators (I share mine with a friend), and a logged-in user switches between the workspaces they can access.
 
 **S3 layout:**
 
@@ -62,7 +62,7 @@ toop-closet/                        ← the bucket
 │   └── {slug}/config.json          ·  owner email · categories · display name
 │
 ├── _users/
-│   └── {netlify-sub}.json          ·  closets owned by one user (login nav index)
+│   └── seats.json                  ·  workspace registry — owner → collaborators
 │
 ├── fits/
 │   ├── items/{id}.json             ·  one object per fit  ─┐ no shared index,
@@ -90,8 +90,8 @@ toop-closet/                        ← the bucket
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "name": "White tee",
     "category": "Tops",
-    "imageUrl": "https://s3…/clothing/toop/abc123",
-    "imageUrls": ["https://s3…/clothing/toop/abc123", "https://s3…/clothing/toop/def456"],
+    "imageUrl": "https://s3…/clothing/a472ae/abc123",
+    "imageUrls": ["https://s3…/clothing/a472ae/abc123", "https://s3…/clothing/a472ae/def456"],
     "notes": "Cotton, size M"
   }
 ]
@@ -101,7 +101,7 @@ toop-closet/                        ← the bucket
 `users/{slug}/config.json` — closet metadata:
 ```json
 {
-  "slug": "toop",
+  "slug": "a472ae",
   "ownerEmail": "owner@example.com",
   "categories": ["Tops", "Bottoms", "Shoes"],
   "name": "Denver"
@@ -109,29 +109,79 @@ toop-closet/                        ← the bucket
 ```
 `slug` is permanent (URL + S3 key). `name` is the editable display label.
 
-`_users/{netlify-sub}.json` — per-user closet index:
+`_users/seats.json` — workspace registry (owner email → collaborators):
 ```json
-{ "closets": [{ "slug": "toop", "name": "Denver" }, { "slug": "central-coast" }] }
+{
+  "mail@tooper.io":        { "name": "Tooper", "seats": ["alex.ziemba@gmail.com"] },
+  "alex.ziemba@gmail.com": { "name": "Yeezy",  "seats": ["mail@tooper.io"] }
+}
 ```
-`sub` is the Netlify Identity UUID from the JWT. Written on closet create/rename/delete; read on login to populate the owner nav.
+A *workspace* is an owner email; `ownerEmail` on every closet/fit/suitcase says which one it belongs to. You can act in your own workspace plus any that lists you in its `seats` (here they're mutual). Missing/empty file ⇒ everyone is an isolated tenant. Edit to invite or rename — no redeploy.
 
-**Auth:**
+`fits/items/{id}.json` — one composed fit (`ownerEmail` is server-only, stripped before the client sees it):
+```json
+{
+  "id": "9c0361a18a5c",
+  "name": "Touch down Tooper",
+  "imageUrl": "https://s3…/clothing/fits-9c0361a18a5c.webp?v=1720000000000",
+  "items": [
+    { "itemId": "550e8400-…", "slug": "a472ae", "name": "White tee", "imageUrl": "https://s3…/clothing/a472ae/abc123" }
+  ],
+  "context": "smart casual, muted tones",
+  "suitcaseId": "87e4b44b9aad",
+  "ownerEmail": "mail@tooper.io",
+  "createdAt": "2026-06-27T18:20:00.000Z"
+}
+```
+`suitcaseId` is present only for fits generated from a suitcase (siloed to it). `?v=` on `imageUrl` cache-busts after a regenerate.
 
-Netlify Identity issues a JWT on login. Access is flat: reads are public, and every write endpoint requires only a valid JWT — any logged-in user has full write access (Identity is invite-only, so that's the trusted user set). There's no per-closet ownership check and no ACL table; `ownerEmail` is still stored on records for provenance and the public-closet filter, but isn't checked for authorization. In local dev, `requireAuth` returns a fake user from `OWNER_EMAIL` in `.env.local` so the full CRUD flow works without a real login.
+`suitcases/items/{id}.json` — one packed trip (item snapshots, no generated image):
+```json
+{
+  "id": "87e4b44b9aad",
+  "name": "Vegas trip",
+  "items": [
+    { "itemId": "550e8400-…", "slug": "a472ae", "name": "White tee", "imageUrl": "https://s3…/clothing/a472ae/abc123" }
+  ],
+  "ownerEmail": "mail@tooper.io",
+  "createdAt": "2026-06-27T18:00:00.000Z"
+}
+```
+
+`fits/_jobs/{jobId}.json` — transient generation result, deleted on the first terminal read:
+```json
+{ "status": "done", "imageBase64": "<webp bytes, base64>" }
+```
+
+**Auth & workspaces:**
+
+Netlify Identity issues a JWT on login (registration is invite-only). Reads are public; **writes require login + workspace membership.**
+
+```
+_users/seats.json ─▶ accessibleWorkspaces(user) = own email + workspaces that seat you
+                          │
+                          ├─ canActOn(user, ownerEmail)    → write gate (else 403)
+                          └─ targetWorkspace(user, active)  → workspace a new item is stamped with
+```
+
+- Own workspace + any that seats you → read/write both, and switch between them in the UI.
+- Not in anyone's `seats` → **isolated tenant**: your own closets only.
+- Reads: closets are fully public; `/fits` + `/suitcases` lists are workspace-scoped, but a single fit/suitcase stays reachable by id (share links).
+- Local dev bypasses Identity: set `OWNER_EMAIL` in `.env.local` and the backend returns a fake owner user.
 
 **Read vs. write lifecycle:**
 
 ```
-GET  /toop          →  fetch inventory/{slug}.json (public, direct S3 read via function)
-POST /clothes       →  auth check → append to inventory array → write back to S3
-PUT  /upload-url    →  auth + ownership check → return presigned PUT URL (300s TTL)
+GET  /a472ae        →  fetch inventory/{slug}.json (public, direct S3 read via function)
+POST /clothes       →  auth + workspace membership → append to inventory array → write S3
+PUT  /upload-url    →  auth + membership → return presigned PUT URL (300s TTL)
                          browser uploads directly to S3 — image never passes through a function
-DELETE /clothes     →  auth + ownership check → filter item from array → write back to S3
+DELETE /clothes     →  auth + membership → filter item from array → write back to S3
 ```
 
 **Share links:**
 
-Each item has a permanent UUID. Clicking "Copy link" on any card writes `/{slug}?item={first-8-chars-of-uuid}` to the clipboard. On load, the app finds the matching item by ID prefix, opens its lightbox, and strips the param from the URL. No new data is stored — the ID has existed since the item was created. Fits share the same way via `/fits?fit={first-8-chars}`.
+Items link by ID prefix: "Copy link" writes `/{slug}?item={first-8-chars}` — on load the app finds the item, opens its lightbox, and strips the param. Fits link by their **full** id: standalone as `/fits?fit={id}`, suitcase fits as `/suitcases/{suitcaseId}?fit={id}`. List views are workspace-scoped, but these by-id lookups are unscoped, so a shared link always resolves — for any viewer, logged in or not.
 
 ---
 

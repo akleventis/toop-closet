@@ -1,6 +1,6 @@
 import { readJson, writeJson } from '../lib/s3.js'
-import { requireAuth } from '../lib/auth.js'
-import { JSON_HEADERS, SLUG_RE } from '../lib/types.js'
+import { requireAuth, canActOnCloset } from '../lib/auth.js'
+import { JSON_HEADERS, SLUG_RE, forbidden, unauthorized, errorRes } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type Item = {
@@ -37,7 +37,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   const slug = event.queryStringParameters?.slug
 
   if (!slug || !SLUG_RE.test(slug)) {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'slug is required' }) }
+    return errorRes(400, 'slug is required')
   }
 
   if (method === 'GET') {
@@ -45,24 +45,23 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(items) }
   }
 
-  // Any logged-in user has full write access across all closets.
   const user = requireAuth(context)
-  if (!user) {
-    return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
-  }
+  if (!user) return unauthorized()
+  // Writable only in a workspace you own or are a seat of.
+  if (!(await canActOnCloset(user, slug))) return forbidden()
 
   let body: Record<string, unknown>
   try {
     body = JSON.parse(event.body ?? '{}') as Record<string, unknown>
   } catch {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Invalid JSON body' }) }
+    return errorRes(400, 'Invalid JSON body')
   }
 
   let items = await getInventory(slug)
 
   if (method === 'POST') {
     if (!body.name || !body.category) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name and category are required' }) }
+      return errorRes(400, 'name and category are required')
     }
     const rawUrls = parseImageUrls(body.imageUrls)
     const imageUrls = rawUrls.length > 1 ? rawUrls : undefined
@@ -81,7 +80,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   if (method === 'PUT') {
     if (!body.id) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'id is required' }) }
+      return errorRes(400, 'id is required')
     }
     let updated: Item | undefined
     items = items.map(i => {
@@ -105,7 +104,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       return updated
     })
     if (!updated) {
-      return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Item not found' }) }
+      return errorRes(404, 'Item not found')
     }
     await saveInventory(slug, items)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(updated) }
@@ -113,7 +112,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
   if (method === 'DELETE') {
     if (!body.id) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'id is required' }) }
+      return errorRes(400, 'id is required')
     }
     items = items.filter(i => i.id !== body.id)
     await saveInventory(slug, items)

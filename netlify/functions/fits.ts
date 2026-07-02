@@ -1,8 +1,8 @@
 import { randomBytes } from 'crypto'
 import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { s3, readJson, writeJson, s3PublicUrl } from '../lib/s3.js'
-import { requireAuth } from '../lib/auth.js'
-import { JSON_HEADERS } from '../lib/types.js'
+import { requireAuth, canActOn, targetWorkspace } from '../lib/auth.js'
+import { JSON_HEADERS, forbidden, unauthorized, errorRes } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
 
 type FitItem = { itemId: string; slug: string; name: string; imageUrl: string }
@@ -28,32 +28,40 @@ async function listFits(): Promise<Fit[]> {
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {
   if (event.httpMethod === 'GET') {
-    const fits = await listFits()
+    const { id, suitcaseId, workspace } = event.queryStringParameters ?? {}
+    const all = await listFits()
+    // ?id= one fit (exact id, non-enumerable) and ?suitcaseId= a suitcase's fits are unscoped so share links resolve for any viewer; else scope the list to a workspace.
+    let fits: Fit[]
+    if (id) fits = all.filter(f => f.id === id)
+    else if (suitcaseId) fits = all.filter(f => f.suitcaseId === suitcaseId)
+    else fits = all.filter(f => f.ownerEmail.toLowerCase() === (workspace || process.env.OWNER_EMAIL || '').toLowerCase())
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(fits.map(toPublicFit)) }
   }
 
   const netlifyUser = requireAuth(context)
   if (!netlifyUser) {
-    return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Unauthorized' }) }
+    return unauthorized()
   }
 
   if (event.httpMethod === 'POST') {
-    if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
-    const { name, items, imageBase64, context, suitcaseId } = JSON.parse(event.body) as { name?: string; items: FitItem[]; imageBase64: string; context?: string; suitcaseId?: string }
+    if (!event.body) return errorRes(400, 'Body required')
+    const { name, items, imageBase64, context, suitcaseId, workspace } = JSON.parse(event.body) as { name?: string; items: FitItem[]; imageBase64: string; context?: string; suitcaseId?: string; workspace?: string }
     if (!Array.isArray(items) || items.length === 0) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'items must be a non-empty array' }) }
+      return errorRes(400, 'items must be a non-empty array')
     }
+    const ws = await targetWorkspace(netlifyUser, workspace)
+    if (!ws) return forbidden()
     if (typeof imageBase64 !== 'string' || !imageBase64) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'imageBase64 is required' }) }
+      return errorRes(400, 'imageBase64 is required')
     }
     if (name !== undefined && (typeof name !== 'string' || name.length > 60)) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a string (max 60 chars)' }) }
+      return errorRes(400, 'name must be a string (max 60 chars)')
     }
     if (context !== undefined && (typeof context !== 'string' || context.length > CONTEXT_MAX)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: `context must be a string (max ${CONTEXT_MAX} chars)` }) }
     }
     if (suitcaseId !== undefined && typeof suitcaseId !== 'string') {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'suitcaseId must be a string' }) }
+      return errorRes(400, 'suitcaseId must be a string')
     }
 
     const id = randomBytes(6).toString('hex')
@@ -74,7 +82,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
       items,
       ...(context?.trim() ? { context: context.trim() } : {}),
       ...(suitcaseId ? { suitcaseId } : {}),
-      ownerEmail: netlifyUser.email,
+      ownerEmail: ws,
       createdAt: new Date().toISOString(),
     }
 
@@ -83,27 +91,28 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   }
 
   if (event.httpMethod === 'PUT') {
-    if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
+    if (!event.body) return errorRes(400, 'Body required')
     const { id, name, items, imageBase64, context, suitcaseId } = JSON.parse(event.body) as { id: string; name?: string; items?: FitItem[]; imageBase64?: string; context?: string; suitcaseId?: string }
     if (name !== undefined && (typeof name !== 'string' || name.length > 60)) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'name must be a string (max 60 chars)' }) }
+      return errorRes(400, 'name must be a string (max 60 chars)')
     }
     if (items !== undefined && (!Array.isArray(items) || items.length === 0)) {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'items must be a non-empty array' }) }
+      return errorRes(400, 'items must be a non-empty array')
     }
     if (imageBase64 !== undefined && typeof imageBase64 !== 'string') {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'imageBase64 must be a string' }) }
+      return errorRes(400, 'imageBase64 must be a string')
     }
     if (context !== undefined && (typeof context !== 'string' || context.length > CONTEXT_MAX)) {
       return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: `context must be a string (max ${CONTEXT_MAX} chars)` }) }
     }
     if (suitcaseId !== undefined && typeof suitcaseId !== 'string') {
-      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'suitcaseId must be a string' }) }
+      return errorRes(400, 'suitcaseId must be a string')
     }
 
-    // Any logged-in user can edit any fit.
     const existing = await readJson<Fit>(fitKey(id))
-    if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
+    if (!existing) return errorRes(404, 'Not found')
+    // Editable if you own or are a seat of the fit's workspace.
+    if (!(await canActOn(netlifyUser, existing.ownerEmail))) return forbidden()
 
     let imageUrl = existing.imageUrl
     if (imageBase64) {
@@ -131,11 +140,12 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
   }
 
   if (event.httpMethod === 'DELETE') {
-    if (!event.body) return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Body required' }) }
+    if (!event.body) return errorRes(400, 'Body required')
     const { id } = JSON.parse(event.body) as { id: string }
 
     const existing = await readJson<Fit>(fitKey(id))
-    if (!existing) return { statusCode: 404, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Not found' }) }
+    if (!existing) return errorRes(404, 'Not found')
+    if (!(await canActOn(netlifyUser, existing.ownerEmail))) return forbidden()
     await s3.send(new DeleteObjectCommand({ Bucket, Key: fitKey(id) }))
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }

@@ -11,7 +11,7 @@ import Modal from '../components/Modal'
 import Toast from '../components/Toast'
 
 export default function SuitcasesPage() {
-  const { user, token, isOwner, userClosets, allClosets, login, logout } = useAuth()
+  const { user, token, isOwner, allClosets, backTo, activeWorkspace, login, logout } = useAuth()
   const navigate = useNavigate()
   const [suitcases, setSuitcases] = useState<Suitcase[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,17 +24,17 @@ export default function SuitcasesPage() {
   const { toast, showToast } = useToast()
 
   useEffect(() => {
-    fetchSuitcases()
+    fetchSuitcases(activeWorkspace ?? undefined)
       .then(setSuitcases)
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [activeWorkspace])
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault()
     setCreateLoading(true)
     try {
-      const created = await createSuitcase(newName.trim() || undefined, [], token)
+      const created = await createSuitcase(newName.trim() || undefined, [], token, activeWorkspace ?? undefined)
       navigate(`/suitcases/${created.id}`)
     } catch {
       showToast('Failed to create suitcase.', 'error')
@@ -65,9 +65,6 @@ export default function SuitcasesPage() {
       showToast('Failed to delete suitcase.', 'error')
     }
   }
-
-  const backTarget = userClosets[0] ?? allClosets[0]
-  const backTo = backTarget ? `/${backTarget.slug}` : '/'
 
   return (
     <div className="min-h-screen">

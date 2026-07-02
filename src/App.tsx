@@ -16,14 +16,17 @@ import {
   fetchConfig, createCloset, deleteCloset, updateCategories, updateClosetName, deleteImage,
 } from './api'
 import { getImages } from './types'
-import type { ClothingItem, ModalState, SavePayload } from './types'
+import type { ClothingItem, ModalState, SavePayload, UserCloset } from './types'
 
 const ALL = 'All'
 
 export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { user, token, isOwner, userClosets, setUserClosets, allClosets, setAllClosets, login, logout } = useAuth()
+  const { user, token, isOwner, userClosets, setWorkspaces, workspaces, activeWorkspace, setActiveWorkspace, editableSlugs, allClosets, setAllClosets, login, logout } = useAuth()
+  // Logged in = can create closets; editing a specific closet also requires it to
+  // belong to a workspace you're a member of (own or seat-of).
+  const canEdit = isOwner && !!slug && editableSlugs.has(slug)
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
   const [items, setItems] = useState<ClothingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,6 +48,14 @@ export default function App() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteClosetLoading, setDeleteClosetLoading] = useState(false)
   const [deleteClosetError, setDeleteClosetError] = useState<string | null>(null)
+
+  // Following a link into a closet in another workspace you belong to switches you there,
+  // so the nav, edit-gating, and transfer targets all line up with the closet you're viewing.
+  useEffect(() => {
+    if (!slug) return
+    const owner = workspaces.find(w => w.closets.some(c => c.slug === slug))?.ownerEmail
+    if (owner && owner !== activeWorkspace) setActiveWorkspace(owner)
+  }, [slug, workspaces, activeWorkspace, setActiveWorkspace])
 
   useEffect(() => {
     if (!slug) return
@@ -159,10 +170,15 @@ export default function App() {
     })
   }
 
+  // Optimistically transform the closet list of every accessible workspace at once.
+  const mutateClosets = (fn: (cs: UserCloset[]) => UserCloset[]) =>
+    setWorkspaces(prev => prev.map(w => ({ ...w, closets: fn(w.closets) })))
+
   const handleCreateCloset = async (name: string): Promise<string> => {
-    const config = await createCloset(name, token)
+    const config = await createCloset(name, token, activeWorkspace ?? undefined)
     const entry = { slug: config.slug, name: config.name }
-    setUserClosets(prev => [...prev, entry])
+    // New closet lands in the active workspace; mirror into the public list too.
+    setWorkspaces(prev => prev.map(w => w.ownerEmail === activeWorkspace ? { ...w, closets: [...w.closets, entry] } : w))
     setAllClosets(prev => [...prev, entry])
     return config.slug
   }
@@ -175,7 +191,7 @@ export default function App() {
     try {
       const config = await updateClosetName(renameValue.trim(), slug, token)
       setClosetName(config.name)
-      setUserClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
+      mutateClosets(cs => cs.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setAllClosets(prev => prev.map(c => c.slug === slug ? { ...c, name: config.name } : c))
       setRenamingCloset(false)
     } catch {
@@ -192,7 +208,7 @@ export default function App() {
     try {
       await deleteCloset(slug, token)
       const remaining = userClosets.filter(c => c.slug !== slug)
-      setUserClosets(remaining)
+      mutateClosets(cs => cs.filter(c => c.slug !== slug))
       setAllClosets(prev => prev.filter(c => c.slug !== slug))
       setConfirmingDelete(false)
       navigate(remaining.length > 0 ? `/${remaining[0].slug}` : '/')
@@ -214,19 +230,28 @@ export default function App() {
     }
   }
 
-  const otherClosets = isOwner ? userClosets.filter(c => c.slug !== slug) : []
+  const otherClosets = canEdit ? userClosets.filter(c => c.slug !== slug) : []
+
+  const handleSwitchWorkspace = (email: string) => {
+    setActiveWorkspace(email)
+    const ws = workspaces.find(w => w.ownerEmail === email)
+    navigate(ws?.closets[0] ? `/${ws.closets[0].slug}` : '/')
+  }
 
   return (
     <div className="min-h-screen">
       <Header
         slug={slug}
-        closets={allClosets}
+        closets={isOwner ? userClosets : allClosets}
         user={user}
         onLogin={login}
         onLogout={logout}
         onCreateCloset={isOwner ? handleCreateCloset : undefined}
-        onRenameCloset={isOwner ? () => { setRenameValue(closetName ?? slug ?? ''); setRenameClosetError(null); setRenamingCloset(true) } : undefined}
-        onDeleteCloset={isOwner ? () => { setDeleteClosetError(null); setConfirmingDelete(true) } : undefined}
+        onRenameCloset={canEdit ? () => { setRenameValue(closetName ?? slug ?? ''); setRenameClosetError(null); setRenamingCloset(true) } : undefined}
+        onDeleteCloset={canEdit ? () => { setDeleteClosetError(null); setConfirmingDelete(true) } : undefined}
+        workspaces={workspaces}
+        activeWorkspace={activeWorkspace}
+        onSwitchWorkspace={handleSwitchWorkspace}
       />
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
@@ -235,8 +260,8 @@ export default function App() {
           onChange={setCategory}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onAdd={isOwner ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
-          onSaveTagEdits={isOwner ? handleSaveTagEdits : undefined}
+          onAdd={canEdit ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
+          onSaveTagEdits={canEdit ? handleSaveTagEdits : undefined}
         />
         {loading ? (
           <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
@@ -250,13 +275,13 @@ export default function App() {
               <ClothingCard
                 key={item.id}
                 item={item}
-                isOwner={isOwner}
+                isOwner={canEdit}
                 isProcessing={processingBg.has(item.id)}
                 otherClosets={otherClosets}
                 autoOpen={item.id === sharedItemId}
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
-                onTransfer={isOwner ? handleTransferItem : undefined}
+                onTransfer={canEdit ? handleTransferItem : undefined}
                 onShare={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/${slug}?item=${item.id.slice(0, 8)}`)
                   showToast('Link copied!')
@@ -266,7 +291,7 @@ export default function App() {
           </div>
         )}
       </main>
-      {modal && isOwner && (
+      {modal && canEdit && (
         <ItemModal
           modal={modal}
           onSave={handleSave}

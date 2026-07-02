@@ -6,8 +6,12 @@ export type UserConfig = {
 
 export type UserCloset = { slug: string; name?: string }
 
+// A workspace the logged-in user can act in: their own, or one they're a seat of.
+export type Workspace = { ownerEmail: string; own: boolean; name?: string; closets: UserCloset[] }
+
 export type OwnProfile = {
-  closets: UserCloset[]
+  workspaces: Workspace[]
+  closets: UserCloset[] // own workspace's closets (back-compat)
 }
 
 export type ClothingItem = {

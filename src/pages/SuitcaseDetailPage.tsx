@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import type { Fit, FitItem, Suitcase } from '../types'
-import { fetchSuitcases, fetchFits, updateSuitcase, deleteFit } from '../api'
+import { fetchSuitcase, fetchSuitcaseFits, updateSuitcase, deleteFit } from '../api'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { useFitGeneration } from '../contexts/fitGenerationContext'
@@ -13,7 +13,7 @@ import Toast from '../components/Toast'
 
 export default function SuitcaseDetailPage() {
   const { id = '' } = useParams<{ id: string }>()
-  const { user, token, isOwner, userClosets, allClosets, login, logout } = useAuth()
+  const { user, token, isOwner, allClosets, backTo, activeWorkspace, login, logout } = useAuth()
   const { pending, generate, subscribe } = useFitGeneration()
   const { toast, showToast } = useToast()
   const [suitcase, setSuitcase] = useState<Suitcase | null>(null)
@@ -31,11 +31,12 @@ export default function SuitcaseDetailPage() {
     else if (fit.suitcaseId === id) setFits(prev => [fit, ...prev])
   }), [subscribe, id])
 
+  // Fetch by id (unscoped) so a shared /suitcases/:id?fit= link resolves for any viewer.
   useEffect(() => {
-    Promise.all([fetchSuitcases(), fetchFits()])
-      .then(([suitcases, allFits]) => {
-        setSuitcase(suitcases.find(s => s.id === id) ?? null)
-        setFits(allFits.filter(f => f.suitcaseId === id))
+    Promise.all([fetchSuitcase(id), fetchSuitcaseFits(id)])
+      .then(([suitcase, fits]) => {
+        setSuitcase(suitcase)
+        setFits(fits)
         if (fitParam) window.history.replaceState({}, '', `/suitcases/${id}`)
       })
       .catch(() => {})
@@ -43,7 +44,7 @@ export default function SuitcaseDetailPage() {
   }, [id, fitParam])
 
   const handleGenerate = (name: string | undefined, items: FitItem[], context: string, existingFit?: Fit, stub?: boolean, suitcaseId?: string) => {
-    generate(name, items, context, token, existingFit, stub, suitcaseId)
+    generate(name, items, context, token, existingFit, stub, suitcaseId, activeWorkspace ?? undefined)
   }
 
   const handleUnpack = async (item: FitItem) => {
@@ -76,9 +77,6 @@ export default function SuitcaseDetailPage() {
 
   const standalonePending = pending.filter(p => !p.existingId && p.suitcaseId === id)
   const regeneratingIds = new Set(pending.filter(p => p.existingId && p.suitcaseId === id).map(p => p.existingId!))
-
-  const backTarget = userClosets[0] ?? allClosets[0]
-  const backTo = backTarget ? `/${backTarget.slug}` : '/'
 
   return (
     <div className="min-h-screen">

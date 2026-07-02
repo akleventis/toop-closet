@@ -4,7 +4,7 @@ import { join } from 'path'
 import { requireAuthFromHeader } from '../lib/auth.js'
 import { removeBackground, bgRemovalConfigured } from '../lib/bgRemoval.js'
 import { writeJson } from '../lib/s3.js'
-import { JSON_HEADERS } from '../lib/types.js'
+import { JSON_HEADERS, errorRes } from '../lib/types.js'
 import type { HandlerEvent, HandlerResponse } from '../lib/types.js'
 
 // The `-background.ts` filename makes Netlify 202 instantly then run to completion (15-min cap); the result lands in an S3 job file that `fit-status` polls.
@@ -31,7 +31,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
   const { jobId, items, context: stylingContext, stub } = (event.body ? JSON.parse(event.body) : {}) as { jobId?: string; items?: FitItem[]; context?: string; stub?: boolean }
   // Validate before it touches an S3 key — path-traversal guard.
   if (!jobId || !JOB_ID_RE.test(jobId)) {
-    return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: 'Valid jobId required' }) }
+    return errorRes(400, 'Valid jobId required')
   }
 
   // Caller already has its 202 — report every outcome via the job file.

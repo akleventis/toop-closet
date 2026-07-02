@@ -18,7 +18,7 @@ export function FitGenerationProvider({ children }: { children: ReactNode }) {
     return () => { listeners.current.delete(cb) }
   }, [])
 
-  const generate: FitGenerationCtx['generate'] = (name, items, context, token, existingFit, stub, suitcaseId) => {
+  const generate: FitGenerationCtx['generate'] = (name, items, context, token, existingFit, stub, suitcaseId, workspace) => {
     // Preserve the suitcase tag on regenerate; use the passed id for a brand-new suitcase fit.
     const effectiveSuitcaseId = existingFit?.suitcaseId ?? suitcaseId
     const tempId = crypto.randomUUID()
@@ -27,9 +27,10 @@ export function FitGenerationProvider({ children }: { children: ReactNode }) {
       try {
         // No AbortSignal: the job must run to completion even if the user leaves /fits.
         const base64 = await createFit(items, context, token, stub)
+        // New fits land in the active workspace; regenerate keeps the existing fit's workspace.
         const fit = existingFit
           ? await updateFit(existingFit.id, { name, items, imageBase64: base64, context, suitcaseId: effectiveSuitcaseId }, token)
-          : await saveFit(name, items, base64, token, context, effectiveSuitcaseId)
+          : await saveFit(name, items, base64, token, context, effectiveSuitcaseId, workspace)
         listeners.current.forEach(cb => cb({ fit, existingId: existingFit?.id }))
         showToast(existingFit ? 'Fit regenerated.' : 'Fit created.')
       } catch (err) {

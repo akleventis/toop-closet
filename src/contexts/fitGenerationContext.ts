@@ -19,6 +19,7 @@ export type FitGenerationCtx = {
     existingFit?: Fit,
     stub?: boolean,
     suitcaseId?: string,
+    workspace?: string,
   ) => void
   subscribe: (cb: (r: GenResult) => void) => () => void
 }

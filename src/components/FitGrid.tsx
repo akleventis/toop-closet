@@ -98,8 +98,9 @@ export default function FitGrid({ fits, pending, regeneratingIds, isOwner, openF
           closeOnEsc={!lightboxItem}
           onShare={() => {
             // Suitcase fits are siloed to their suitcase page; standalone fits live on /fits.
+            // Full id (not a prefix) so the unscoped ?id= lookup stays exact/non-enumerable.
             const path = lightboxFit.suitcaseId ? `/suitcases/${lightboxFit.suitcaseId}` : '/fits'
-            navigator.clipboard.writeText(`${window.location.origin}${path}?fit=${lightboxFit.id.slice(0, 8)}`)
+            navigator.clipboard.writeText(`${window.location.origin}${path}?fit=${lightboxFit.id}`)
             showToast('Link copied!')
           }}
           onClose={() => setLightboxFit(null)}

@@ -9,8 +9,6 @@ export type ClosetConfig = {
   name?: string
 }
 
-export type UserCloset = { slug: string; name?: string }
-
 export async function allSlugs(): Promise<string[]> {
   const res = await s3.send(new ListObjectsV2Command({
     Bucket: process.env.S3_BUCKET_NAME,
@@ -26,17 +24,16 @@ export async function readClosetConfig(slug: string): Promise<ClosetConfig | nul
   return readJson<ClosetConfig>(`users/${slug}/config.json`)
 }
 
+// Every closet config in the bucket (one read per closet). Used to group closets
+// by workspace (ownerEmail) for the profile + public closet list. Personal-scale.
+export async function allClosetConfigs(): Promise<ClosetConfig[]> {
+  const slugs = await allSlugs()
+  const configs = await Promise.all(slugs.map(readClosetConfig))
+  return configs.filter((c): c is ClosetConfig => c !== null)
+}
+
 export async function writeClosetConfig(config: ClosetConfig): Promise<void> {
   return writeJson(`users/${config.slug}/config.json`, config)
-}
-
-export async function readUserIndex(userId: string): Promise<UserCloset[] | null> {
-  const raw = await readJson<{ closets: UserCloset[] }>(`_users/${userId}.json`)
-  return raw?.closets ?? null
-}
-
-export async function writeUserIndex(userId: string, closets: UserCloset[]): Promise<void> {
-  return writeJson(`_users/${userId}.json`, { closets })
 }
 
 export async function generateSlug(): Promise<string> {
