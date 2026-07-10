@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
 import { DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { s3, readJson, writeJson } from '../lib/s3.js'
+import { FITS_PREFIX, deleteFit } from '../lib/fits.js'
 import { requireAuth, canActOn, targetWorkspace } from '../lib/auth.js'
 import { JSON_HEADERS, forbidden, unauthorized, errorRes } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
@@ -25,13 +26,11 @@ async function listSuitcases(): Promise<Suitcase[]> {
 }
 
 // A suitcase's fits live only on the suitcase, so deleting it deletes them too.
-// Removes the fit JSON only (composed images stay orphaned, like fits.ts DELETE).
 async function deleteSuitcaseFits(suitcaseId: string): Promise<void> {
-  const out = await s3.send(new ListObjectsV2Command({ Bucket, Prefix: 'fits/items/' }))
+  const out = await s3.send(new ListObjectsV2Command({ Bucket, Prefix: FITS_PREFIX }))
   const keys = (out.Contents ?? []).map(o => o.Key!).filter(k => k.endsWith('.json'))
-  const fits = await Promise.all(keys.map(k => readJson<{ suitcaseId?: string }>(k)))
-  const stale = keys.filter((_, i) => fits[i]?.suitcaseId === suitcaseId)
-  await Promise.all(stale.map(k => s3.send(new DeleteObjectCommand({ Bucket, Key: k }))))
+  const fits = await Promise.all(keys.map(k => readJson<{ id: string; suitcaseId?: string }>(k)))
+  await Promise.all(fits.filter(f => f?.suitcaseId === suitcaseId).map(f => deleteFit(f!.id)))
 }
 
 export const handler = async (event: HandlerEvent, context: NetlifyContext): Promise<HandlerResponse> => {

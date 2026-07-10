@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto'
-import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { s3, readJson, writeJson, s3PublicUrl } from '../lib/s3.js'
+import { FITS_PREFIX, fitKey, fitImageKey, deleteFit } from '../lib/fits.js'
 import { requireAuth, canActOn, targetWorkspace } from '../lib/auth.js'
 import { JSON_HEADERS, forbidden, unauthorized, errorRes } from '../lib/types.js'
 import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types.js'
@@ -8,10 +9,8 @@ import type { HandlerEvent, NetlifyContext, HandlerResponse } from '../lib/types
 type FitItem = { itemId: string; slug: string; name: string; imageUrl: string }
 type Fit = { id: string; name?: string; imageUrl: string; items: FitItem[]; context?: string; suitcaseId?: string; createdAt: string; ownerEmail: string }
 
-// Each fit is its own object — independent keys, so concurrent creates/edits can't race.
-// The list endpoint fans out across the prefix instead of reading a shared index.
-const FITS_PREFIX = 'fits/items/'
-const fitKey = (id: string) => `${FITS_PREFIX}${id}.json`
+// Fit storage keys/helpers live in lib/fits.ts (shared with suitcases.ts). listFits fans out
+// across the prefix instead of reading a shared index.
 const CONTEXT_MAX = 500 // mirrors create-fit-background's server-side cap
 const Bucket = process.env.S3_BUCKET_NAME
 
@@ -65,7 +64,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     }
 
     const id = randomBytes(6).toString('hex')
-    const imageKey = `clothing/fits-${id}.webp`
+    const imageKey = fitImageKey(id)
 
     await s3.send(new PutObjectCommand({
       Bucket,
@@ -116,7 +115,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
 
     let imageUrl = existing.imageUrl
     if (imageBase64) {
-      const imageKey = `clothing/fits-${id}.webp`
+      const imageKey = fitImageKey(id)
       await s3.send(new PutObjectCommand({
         Bucket,
         Key: imageKey,
@@ -146,7 +145,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     const existing = await readJson<Fit>(fitKey(id))
     if (!existing) return errorRes(404, 'Not found')
     if (!(await canActOn(netlifyUser, existing.ownerEmail))) return forbidden()
-    await s3.send(new DeleteObjectCommand({ Bucket, Key: fitKey(id) }))
+    await deleteFit(id)
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify({ ok: true }) }
   }
 

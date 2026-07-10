@@ -16,6 +16,8 @@
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Keep the whole app (incl. leaked share links) out of search indexes.
+    X-Robots-Tag = "noindex"
 
 [[headers]]
   for = "/*.html"

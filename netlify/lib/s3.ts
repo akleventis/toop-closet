@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, GetObjectCommand, PutObjectCommand, PutObjectTaggingCommand } from '@aws-sdk/client-s3'
 
 export const s3 = new S3Client({
   region: process.env.S3_REGION,
@@ -29,4 +29,14 @@ export async function writeJson(key: string, value: unknown): Promise<void> {
     Body: JSON.stringify(value),
     ContentType: 'application/json',
   }))
+}
+
+// Best-effort tag `orphaned=true` for a tag-filtered lifecycle rule; swallows errors so it never blocks a delete.
+// Only safe for single-referent objects — never for anything another record might still reference.
+export async function tagOrphaned(key: string): Promise<void> {
+  await s3.send(new PutObjectTaggingCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: key,
+    Tagging: { TagSet: [{ Key: 'orphaned', Value: 'true' }] },
+  })).catch(() => {})
 }
