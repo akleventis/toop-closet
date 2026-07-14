@@ -63,9 +63,9 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
   return (
     <>
-      <header className="px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1 min-w-0">
+      <header className="px-3 sm:px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
             {onSubPage ? (
               <Link
                 to={backToCloset}
@@ -78,7 +78,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                 {showSwitcher && (
                   <WorkspaceSwitcher workspaces={workspaces} activeWorkspace={activeWorkspace} onSwitch={onSwitchWorkspace!} />
                 )}
-                <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none min-w-0">
+                <nav className="flex items-center gap-3 overflow-x-auto scrollbar-none min-w-0 flex-1">
                   {closets.map(c => {
                     const isActive = c.slug === slug
                     const label = c.name ?? c.slug
@@ -94,7 +94,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                   })}
                 </nav>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center shrink-0">
                   {onCreateCloset && (
                     <button
                       onClick={() => setCreating(true)}
@@ -107,7 +107,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
                   {closetMenuItems.length > 0 && <Menu items={closetMenuItems} align="left" />}
 
-                  <span className="w-px h-4 bg-[--border] shrink-0" aria-hidden="true" />
+                  <span className="w-px h-4 bg-[--border] shrink-0 mx-2" aria-hidden="true" />
 
                   <Link
                     to="/fits"
@@ -117,7 +117,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                   </Link>
                   <Link
                     to="/suitcases"
-                    className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
+                    className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0 ml-3"
                   >
                     suitcases
                   </Link>
@@ -128,11 +128,11 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
-              <button onClick={onLogout} className="px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors">
+              <button onClick={onLogout} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors whitespace-nowrap">
                 Log out
               </button>
             ) : (
-              <button onClick={onLogin} className="px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors">
+              <button onClick={onLogin} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors whitespace-nowrap">
                 Log in
               </button>
             )}

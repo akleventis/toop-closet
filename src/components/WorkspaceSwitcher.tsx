@@ -21,7 +21,7 @@ export default function WorkspaceSwitcher({ workspaces, activeWorkspace, onSwitc
         className="flex items-center gap-1 text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors"
         title="Switch workspace"
       >
-        <span className="max-w-[120px] truncate">{active ? label(active) : 'Workspace'}</span>
+        <span className="max-w-[72px] sm:max-w-[120px] truncate">{active ? label(active) : 'Workspace'}</span>
         <span aria-hidden="true">▾</span>
       </button>
       {open && (
