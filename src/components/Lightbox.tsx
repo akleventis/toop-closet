@@ -56,8 +56,8 @@ export default function Lightbox({ images, name, notes, initialIndex = 0, zIndex
       <img
         src={images[index]}
         alt={name}
-        className="max-w-full object-contain rounded"
-        style={{ maxHeight: multi ? 'calc(100vh - 9rem)' : 'calc(100vh - 6rem)' }}
+        className="max-w-full object-contain rounded min-h-0"
+        style={{ maxHeight: children ? 'calc(100vh - 15rem)' : multi ? 'calc(100vh - 9rem)' : 'calc(100vh - 6rem)' }}
       />
       {name && <p className="text-white/90 text-sm font-medium">{name}</p>}
       {notes && <p className="text-white/70 text-sm">{notes}</p>}
