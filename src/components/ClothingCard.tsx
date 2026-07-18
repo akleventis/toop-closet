@@ -144,13 +144,13 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         )}
         {showTransfer && target && (
           <div className="flex flex-col gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
-            <span className="text-[10px] text-[--muted]">Tag in {target.name ?? target.slug}</span>
+            <span className="text-[10px] text-[--muted] truncate">Tag in {target.name ?? target.slug}</span>
             <div className="flex items-center gap-1.5">
               <select
                 value={targetCat}
                 onChange={e => setTargetCat(e.target.value)}
                 disabled={transferring}
-                className="flex-1 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] disabled:opacity-40"
+                className="flex-1 min-w-0 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] disabled:opacity-40"
                 style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
               >
                 {target.categories.map(c => <option key={c} value={c}>{c}</option>)}
