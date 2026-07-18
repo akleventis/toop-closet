@@ -219,10 +219,11 @@ export default function App() {
     }
   }
 
-  const handleTransferItem = async (item: ClothingItem, targetSlug: string) => {
-    const { id: _id, ...payload } = item
+  // category is re-chosen from the target closet's tags — tags differ per closet
+  const handleTransferItem = async (item: ClothingItem, targetSlug: string, category: string) => {
+    const { id: _id, ...rest } = item
     try {
-      await createItem(payload, targetSlug, token)
+      await createItem({ ...rest, category }, targetSlug, token)
       await deleteItem(item.id, slug!, token)
       setItems(prev => prev.filter(i => i.id !== item.id))
     } catch {

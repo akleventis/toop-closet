@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import type { ClothingItem, UserCloset } from '../types'
 import { getImages } from '../types'
+import { fetchConfig } from '../api'
 import Menu from './Menu'
 import type { MenuItem } from './Menu'
 import Lightbox from './Lightbox'
@@ -13,7 +14,7 @@ type Props = {
   autoOpen?: boolean
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
-  onTransfer?: (item: ClothingItem, targetSlug: string) => Promise<void>
+  onTransfer?: (item: ClothingItem, targetSlug: string, category: string) => Promise<void>
   onShare?: () => void
 }
 
@@ -24,6 +25,11 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const [lightbox, setLightbox] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferring, setTransferring] = useState(false)
+  // Second transfer step: which target closet + one of its tags to file under.
+  const [target, setTarget] = useState<{ slug: string; name?: string; categories: string[] } | null>(null)
+  const [targetCat, setTargetCat] = useState('')
+  const [loadingTarget, setLoadingTarget] = useState<string | null>(null)
+  const [transferError, setTransferError] = useState(false)
   const touchStartX = useRef(0)
   const didSwipe = useRef(false)
 
@@ -44,7 +50,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const menuItems: MenuItem[] = []
   if (isOwner) {
     menuItems.push({ label: 'Edit', onClick: () => onEdit(item) })
-    if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => !t) })
+    if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => { if (t) setTarget(null); return !t }) })
     menuItems.push({ label: 'Delete', danger: true, onClick: () => onDelete(item.id) })
   }
 
@@ -112,21 +118,55 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
-        {showTransfer && (
+        {showTransfer && !target && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (
               <button
                 key={c.slug}
-                disabled={transferring}
+                disabled={!!loadingTarget}
                 onClick={async () => {
-                  setTransferring(true)
-                  try { await onTransfer?.(item, c.slug) } finally { setTransferring(false); setShowTransfer(false) }
+                  setLoadingTarget(c.slug)
+                  setTransferError(false)
+                  try {
+                    const cfg = await fetchConfig(c.slug)
+                    setTarget({ slug: c.slug, name: c.name, categories: cfg.categories })
+                    setTargetCat(cfg.categories[0] ?? '')
+                  } catch { setTransferError(true) }
+                  finally { setLoadingTarget(null) }
                 }}
                 className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
               >
-                {transferring ? '…' : `→ ${c.name ?? c.slug}`}
+                {loadingTarget === c.slug ? '…' : `→ ${c.name ?? c.slug}`}
               </button>
             ))}
+            {transferError && <span className="text-[--danger] text-[10px] w-full">Couldn't load tags. Try again.</span>}
+          </div>
+        )}
+        {showTransfer && target && (
+          <div className="flex flex-col gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
+            <span className="text-[10px] text-[--muted]">Tag in {target.name ?? target.slug}</span>
+            <div className="flex items-center gap-1.5">
+              <select
+                value={targetCat}
+                onChange={e => setTargetCat(e.target.value)}
+                disabled={transferring}
+                className="flex-1 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] disabled:opacity-40"
+                style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
+              >
+                {target.categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <button
+                disabled={transferring || !targetCat}
+                onClick={async () => {
+                  setTransferring(true)
+                  try { await onTransfer?.(item, target.slug, targetCat) }
+                  finally { setTransferring(false); setShowTransfer(false); setTarget(null) }
+                }}
+                className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors shrink-0"
+              >
+                {transferring ? '…' : 'Move'}
+              </button>
+            </div>
           </div>
         )}
       </div>
