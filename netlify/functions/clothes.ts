@@ -10,6 +10,9 @@ type Item = {
   imageUrl: string
   imageUrls?: string[]
   notes?: string
+  // Written by remove-bg-background, never by a client.
+  bgPendingAt?: string
+  bgError?: string
 }
 
 function safeImageUrl(value: unknown): string {
@@ -100,6 +103,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
         imageUrl: newImageUrl,
         ...(newImageUrls ? { imageUrls: newImageUrls } : {}),
         notes: body.notes !== undefined ? String(body.notes).slice(0, 50) || undefined : i.notes,
+        // bg fields are dropped, so an edit clears them; a running job still writes its result.
       }
       return updated
     })

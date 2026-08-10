@@ -20,7 +20,8 @@ const label = 'flex flex-col gap-1 text-xs font-medium text-[--muted]'
 
 type Props = {
   modal: ModalState
-  onSave: (item: SavePayload, bgFiles?: (File | null)[]) => Promise<void>
+  // bgIndexes = image slots to background-remove, handed to a server-side job after the save.
+  onSave: (item: SavePayload, bgIndexes?: number[]) => Promise<void>
   onClose: () => void
   token: string
   slug: string
@@ -51,6 +52,14 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
       images.forEach(slot => { if (slot.kind === 'file') URL.revokeObjectURL(slot.preview) })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The only step that can't be resumed server-side: the file bytes exist solely in this tab.
+  useEffect(() => {
+    if (!busy) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [busy])
 
   useEffect(() => {
     if (lightboxIndex === null) return
@@ -107,23 +116,19 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
     setError(null)
     try {
       const uploadedUrls: string[] = []
-      const bgFiles: (File | null)[] = []
+      const bgIndexes: number[] = []
+      // 'url' slots are already stored (and already de-backgrounded) — only new files upload.
       for (const slot of images) {
         if (slot.kind === 'url') {
           uploadedUrls.push(slot.url)
-          bgFiles.push(null)
-        } else {
-          const resized = await resizeImage(slot.file)
-          const url = await uploadImage(resized, slug, token)
-          uploadedUrls.push(url)
-          bgFiles.push(removeBg ? resized : null)
+          continue
         }
+        uploadedUrls.push(await uploadImage(await resizeImage(slot.file), slug, token))
+        if (removeBg) bgIndexes.push(uploadedUrls.length - 1)
       }
-      const imageUrl = uploadedUrls[0] ?? ''
-      const hasBgWork = bgFiles.some(f => f !== null)
       await onSave(
-        { ...form, imageUrl, imageUrls: uploadedUrls },
-        hasBgWork ? bgFiles : undefined,
+        { ...form, imageUrl: uploadedUrls[0] ?? '', imageUrls: uploadedUrls },
+        bgIndexes.length ? bgIndexes : undefined,
       )
     } catch (err) {
       console.error('Save failed', err)

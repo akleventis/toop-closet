@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Header from './components/Header'
@@ -10,12 +10,12 @@ import Toast from './components/Toast'
 import { DEFAULT_CATEGORIES } from './constants'
 import { useAuth } from './hooks/useAuth'
 import { useToast } from './hooks/useToast'
+import { useBgRemoval } from './hooks/useBgRemoval'
 import {
   fetchItems, createItem, updateItem, deleteItem,
-  removeBackground, uploadImage,
-  fetchConfig, createCloset, deleteCloset, updateCategories, updateClosetName, deleteImage,
+  fetchConfig, createCloset, deleteCloset, updateCategories, updateClosetName,
 } from './api'
-import { getImages } from './types'
+import { isBgPending } from './types'
 import type { ClothingItem, ModalState, SavePayload, UserCloset } from './types'
 
 const ALL = 'All'
@@ -35,7 +35,6 @@ export default function App() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [processingBg, setProcessingBg] = useState<Set<string>>(new Set())
   const [closetName, setClosetName] = useState<string | undefined>(undefined)
   const { toast, showToast } = useToast()
   const [searchQuery, setSearchQuery] = useState('')
@@ -85,6 +84,9 @@ export default function App() {
     return () => controller.abort()
   }, [slug, itemParam])
 
+  const showError = useCallback((msg: string) => showToast(msg, 'error'), [showToast])
+  const bgRemoval = useBgRemoval({ slug: slug ?? '', token, items, setItems, onError: showError, enabled: canEdit })
+
   const allCategories = useMemo(() => [ALL, ...categories], [categories])
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -97,37 +99,12 @@ export default function App() {
 
   if (!slug) return null
 
-  const startBgRemoval = (item: ClothingItem, bgFiles: (File | null)[]) => {
-    setProcessingBg(prev => new Set(prev).add(item.id))
-    const imageUrls = [...getImages(item)]
-      ; (async () => {
-        const replacedUrls: string[] = []
-        for (let i = 0; i < bgFiles.length; i++) {
-          const file = bgFiles[i]
-          if (!file || i >= imageUrls.length) continue
-          const oldUrl = imageUrls[i]
-          const processed = await removeBackground(file, slug, token)
-          imageUrls[i] = await uploadImage(processed, slug, token)
-          replacedUrls.push(oldUrl)
-        }
-        const saved = await updateItem({ ...item, imageUrl: imageUrls[0] ?? '', imageUrls }, slug, token)
-        setItems(prev => prev.map(it => it.id === saved.id ? saved : it))
-        for (const url of replacedUrls) deleteImage(url, slug, token).catch(() => { })
-      })()
-        .catch(() => showToast('Background removal failed.', 'error'))
-        .finally(() => setProcessingBg(prev => { const s = new Set(prev); s.delete(item.id); return s }))
-  }
-
-  const handleSave = async (item: SavePayload, bgFiles?: (File | null)[]) => {
-    if (item.id) {
-      const saved = await updateItem({ ...item, id: item.id }, slug, token)
-      setItems(prev => prev.map(i => i.id === saved.id ? saved : i))
-      if (bgFiles?.some(f => f !== null)) startBgRemoval(saved, bgFiles)
-    } else {
-      const saved = await createItem(item, slug, token)
-      setItems(prev => [...prev, saved])
-      if (bgFiles?.some(f => f !== null)) startBgRemoval(saved, bgFiles)
-    }
+  const handleSave = async (item: SavePayload, bgIndexes?: number[]) => {
+    const saved = item.id
+      ? await updateItem({ ...item, id: item.id }, slug, token)
+      : await createItem(item, slug, token)
+    setItems(prev => item.id ? prev.map(i => i.id === saved.id ? saved : i) : [...prev, saved])
+    if (bgIndexes?.length) bgRemoval.start(saved.id, bgIndexes)
     setModal(null)
   }
 
@@ -277,7 +254,7 @@ export default function App() {
                 key={item.id}
                 item={item}
                 isOwner={canEdit}
-                isProcessing={processingBg.has(item.id)}
+                isProcessing={canEdit && isBgPending(item)}
                 otherClosets={otherClosets}
                 autoOpen={item.id === sharedItemId}
                 onEdit={item => setModal({ mode: 'edit', item })}

@@ -15,6 +15,12 @@ if (!IS_DEV) {
 
 export { IS_DEV, DEV_TOKEN }
 
+// For FitGeneration, which polls outside the tree and shouldn't stand up a second useAuth.
+export const currentToken = (): string =>
+  IS_DEV ? DEV_TOKEN : (netlifyIdentity.currentUser()?.token?.access_token ?? '')
+
+export const currentWorkspace = (): string | undefined => localStorage.getItem(ACTIVE_WS_KEY) ?? undefined
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(IS_DEV ? DEV_USER : netlifyIdentity.currentUser())
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])

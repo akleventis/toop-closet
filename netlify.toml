@@ -8,9 +8,6 @@
   # public/ isn't on the function filesystem; bundle it so functions can read its files.
   included_files = ["public/**"]
 
-[functions."withoutbg"]
-  timeout = 26
-
 [[headers]]
   for = "/*"
   [headers.values]

@@ -137,41 +137,62 @@ export async function updateClosetName(name: string, slug: string, token: string
   return res.json() as Promise<UserConfig>
 }
 
-export async function deleteImage(url: string, slug: string, token: string): Promise<void> {
-  await fetch(`${BASE}/upload-url`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-    body: JSON.stringify({ url, slug }),
-  })
+// The background function commits the fit and reports through this record, so polling only
+// decides when to refresh the UI — dropping it can't lose the result.
+export type FitJob = {
+  jobId: string
+  status: 'pending' | 'done' | 'error'
+  startedAt: string
+  items: FitItem[]
+  name?: string
+  existingId?: string
+  suitcaseId?: string
+  fitId?: string
+  error?: string
 }
 
-// Image generation runs in a Netlify background function (sync functions cap at 26s).
-// We kick off the job, then poll fit-status until the result lands in S3.
-export async function createFit(items: FitItem[], context: string, token: string, stub = false, signal?: AbortSignal): Promise<string> {
-  const jobId = crypto.randomUUID()
+// 202s immediately, before the job file exists — so this returns the job we expect to be written.
+export async function startFitJob(args: {
+  jobId: string
+  items: FitItem[]
+  context: string
+  name?: string
+  existingId?: string
+  suitcaseId?: string
+  workspace?: string
+  stub?: boolean
+}, token: string): Promise<FitJob> {
   const res = await fetch(`${BASE}/create-fit-background`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ jobId, items, context, stub }),
-    signal,
+    body: JSON.stringify(args),
   })
-  // Background functions respond 202 Accepted immediately.
   if (!res.ok && res.status !== 202) throw new Error('Failed to start fit generation')
+  const { jobId, items, name, existingId, suitcaseId } = args
+  return { jobId, status: 'pending', startedAt: new Date().toISOString(), items, name, existingId, suitcaseId }
+}
 
-  const deadline = Date.now() + 180_000
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 2000))
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-    const statusRes = await fetch(`${BASE}/fit-status?jobId=${encodeURIComponent(jobId)}`, {
-      headers: authHeaders(token),
-      signal,
-    })
-    if (!statusRes.ok) continue
-    const data = await statusRes.json() as { status: 'pending' | 'done' | 'error'; imageBase64?: string; error?: string }
-    if (data.status === 'done' && data.imageBase64) return data.imageBase64
-    if (data.status === 'error') throw new Error(data.error || 'Fit generation failed')
-  }
-  throw new Error('Fit generation timed out')
+// How a reloaded client finds work in flight.
+export async function fetchFitJobs(token: string, workspace?: string): Promise<FitJob[]> {
+  const q = workspace ? `?workspace=${encodeURIComponent(workspace)}` : ''
+  const res = await fetch(`${BASE}/fit-status${q}`, { headers: authHeaders(token) })
+  if (!res.ok) throw new Error('Failed to fetch fit jobs')
+  return res.json() as Promise<FitJob[]>
+}
+
+// null = no such job: either not written yet (cold start) or already acknowledged.
+export async function fetchFitJob(jobId: string, token: string): Promise<FitJob | null> {
+  const res = await fetch(`${BASE}/fit-status?jobId=${encodeURIComponent(jobId)}`, { headers: authHeaders(token) })
+  if (res.status === 404) return null
+  if (!res.ok) throw new Error('Failed to fetch fit job')
+  return res.json() as Promise<FitJob>
+}
+
+export async function ackFitJob(jobId: string, token: string): Promise<void> {
+  await fetch(`${BASE}/fit-status?jobId=${encodeURIComponent(jobId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  })
 }
 
 export async function fetchFits(workspace?: string): Promise<Fit[]> {
@@ -186,16 +207,6 @@ export async function fetchFit(id: string): Promise<Fit | null> {
   const res = await fetch(`${BASE}/fits?id=${encodeURIComponent(id)}`)
   if (!res.ok) throw new Error('Failed to fetch fit')
   return ((await res.json()) as Fit[])[0] ?? null
-}
-
-export async function saveFit(name: string | undefined, items: FitItem[], imageBase64: string, token: string, context?: string, suitcaseId?: string, workspace?: string): Promise<Fit> {
-  const res = await fetch(`${BASE}/fits`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify({ name, items, imageBase64, context, suitcaseId, workspace }),
-  })
-  if (!res.ok) throw new Error('Failed to save fit')
-  return res.json() as Promise<Fit>
 }
 
 export async function updateFit(id: string, updates: { name?: string; items?: FitItem[]; imageBase64?: string; context?: string; suitcaseId?: string }, token: string): Promise<Fit> {
@@ -266,19 +277,13 @@ export async function deleteSuitcase(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete suitcase')
 }
 
-export async function removeBackground(file: File, slug: string, token: string): Promise<File> {
-  if (!token) throw new Error('Not authenticated')
-  const compressed = await resizeImage(file)
-  const res = await fetch(`${BASE}/withoutbg?slug=${encodeURIComponent(slug)}`, {
+// The function reads the already-uploaded images from S3 and writes results back itself.
+export async function startBgRemoval(slug: string, itemId: string, indexes: number[], token: string): Promise<void> {
+  const res = await fetch(`${BASE}/remove-bg-background`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': compressed.type,
-    },
-    body: compressed,
+    headers: authHeaders(token),
+    body: JSON.stringify({ slug, itemId, indexes }),
   })
-  if (!res.ok) throw new Error('Background removal failed')
-  const blob = await res.blob()
-  return new File([blob], 'image.webp', { type: 'image/webp' })
+  if (!res.ok && res.status !== 202) throw new Error('Failed to start background removal')
 }
 

@@ -189,33 +189,36 @@ Items link by ID prefix: "Copy link" writes `/{slug}?item={first-8-chars}` — o
 
 Pick items across your closets, add an optional styling note, and the app renders them **worn together on a base subject** — a photo of you or a mannequin (`public/base-subject.webp`). OpenAI's `gpt-4o` image generation is fed the base subject plus each item's image and composes a single outfit. The result is then run through the same background-removal pipeline as item photos for a clean, consistent look, and stored at a fixed `clothing/fits-{id}.webp`.
 
-Generation easily outruns a normal function's 26s timeout, so it runs in a Netlify **background function** (15-min limit) and the whole flow is **fire-and-forget**: the UI drops a loading card the moment you hit *Generate* and swaps in the finished image whenever it lands — navigate away and back, it's still working.
+Generation easily outruns a normal function's 26s timeout, so it runs in a Netlify **background function** (15-min limit). The function **commits the finished fit itself** — the browser never persists the result, it only watches — so you can navigate away, reload, close the tab, or pick up your phone and the work still lands.
 
 ```
 ┌─ browser ────────────────────────────────────────────────────────────┐
 │  pick items  +  styling note   →   Generate (fire-and-forget)        │
 └──────────────────────────────────────────────────────────────────────┘
    │ POST + jobId                                           ▲
-   ▼ 202 instant                                            │ poll /fit-status (2s)
+   ▼ 202 instant                                            │ poll /fit-status (2.5s)
 ┌─ create-fit-background ──────────────────────────────────────────────┐
 │                          Netlify background fn · 15-min limit        │
 │                                                                      │
-│   base-subject.webp ─┐                                               │
+│   fits/_jobs/{jobId}.json  { status: 'pending', … }   ◀── written    │
+│                                        │                  FIRST      │
+│   base-subject.webp ─┐                 │                             │
 │                      ├─▶  OpenAI gpt-4o image_generation             │
-│   item image URLs ───┘                                               │
-│                                        │                             │
+│   item image URLs ───┘                 │                             │
 │                                        ▼                             │
 │                         withoutbg on NAS  (bg removed)               │
 │                                        │  falls back to raw if down  │
 │                                        ▼                             │
-│                             fits/_jobs/{jobId}.json                  │
+│         COMMIT: clothing/fits-{id}.webp + fits/items/{id}.json       │
+│                                        │                             │
+│                                        ▼                             │
+│                    job file → { status: 'done', fitId }              │
 └──────────────────────────────────────────────────────────────────────┘
-   │ on success
-   ▼
-   clothing/fits-{id}.webp   +   fits/items/{id}.json
 ```
 
-Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries a `?v=` cache-bust to dodge stale browser caches. The `withoutbg` step below is the same pipeline used for individual item photos.
+The job file is written **before** generation starts, which is what makes an in-flight fit discoverable at all: on load the client asks `/fit-status` for jobs still running and re-adopts them, so a refresh brings the spinner back instead of losing the job. Since background functions always answer `202` before the handler runs, a returned error never reaches the browser — every failure has to be written into that job file or it disappears silently.
+
+Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries a `?v=` cache-bust to dodge stale browser caches. The `withoutbg` step is the same pipeline used for individual item photos.
 
 ---
 
@@ -232,13 +235,15 @@ A suitcase is structurally a fit minus the generated image — packed items are 
 Wanted a consistent look without manually editing each photo. Self-hosted **[withoutbg](https://github.com/withoutbg/withoutbg)** in Docker on a Synology DS1522+ NAS.
 
 ```
-browser
-  └─▶ netlify function (/withoutbg)
+browser (uploads raw photo to S3, then just kicks off the job)
+  └─▶ remove-bg-background  ←── reads the image back out of S3
         └─▶ tailscale funnel
               └─▶ nginx proxy (secret header check)
                     └─▶ withoutbg container  ←── AI runs here, on my NAS
-                          └─▶ WebP with transparent background
+                          └─▶ WebP written straight back to the inventory
 ```
+
+The browser never holds the image through this — it uploads, starts the job, and can close the tab. Progress lives on the item record (`bgPendingAt`), so any device that loads the closet shows the spinner and picks up the result.
 
 The NAS is reachable at a stable HTTPS hostname via **[Tailscale Funnel](https://tailscale.com/kb/1223/funnel)** — no port forwarding, no static IP. An nginx proxy in front validates a shared secret before anything reaches the model.
 

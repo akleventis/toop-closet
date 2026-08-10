@@ -48,7 +48,7 @@ export default function FitGrid({ fits, pending, regeneratingIds, isOwner, openF
     <>
       <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
         {pending.map(p => (
-          <div key={p.tempId} className="rounded-lg border border-[--border] flex flex-col">
+          <div key={p.jobId} className="rounded-lg border border-[--border] flex flex-col">
             <div className="relative aspect-square bg-[--bg-subtle] rounded-t-lg overflow-hidden flex items-center justify-center">
               <Spinner size={28} />
             </div>

@@ -26,9 +26,11 @@ export default function SuitcaseDetailPage() {
   const [fitParam] = useState(() => new URLSearchParams(window.location.search).get('fit'))
 
   // Patch the local fit list when a generation for THIS suitcase finishes while mounted.
-  useEffect(() => subscribe(({ fit, existingId }) => {
-    if (existingId) setFits(prev => prev.map(f => (f.id === fit.id ? fit : f)))
-    else if (fit.suitcaseId === id) setFits(prev => [fit, ...prev])
+  // Upsert: an adopted job can resolve a fit the initial fetch already returned.
+  useEffect(() => subscribe(({ fit }) => {
+    setFits(prev => prev.some(f => f.id === fit.id)
+      ? prev.map(f => (f.id === fit.id ? fit : f))
+      : fit.suitcaseId === id ? [fit, ...prev] : prev)
   }), [subscribe, id])
 
   // Fetch by id (unscoped) so a shared /suitcases/:id?fit= link resolves for any viewer.

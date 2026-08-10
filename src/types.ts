@@ -21,7 +21,16 @@ export type ClothingItem = {
   imageUrl: string
   imageUrls?: string[]
   notes?: string
+  // Written only by remove-bg-background; a fresh bgPendingAt means a job is running.
+  bgPendingAt?: string
+  bgError?: string
 }
+
+// Longer than the NAS timeout + upload; past this a bgPendingAt is a crashed job, not a live one.
+const BG_STALE_MS = 5 * 60 * 1000
+
+export const isBgPending = (item: ClothingItem): boolean =>
+  !!item.bgPendingAt && Date.now() - Date.parse(item.bgPendingAt) < BG_STALE_MS
 
 export function getImages(item: ClothingItem): string[] {
   if (item.imageUrls?.length) return item.imageUrls

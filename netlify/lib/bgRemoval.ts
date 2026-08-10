@@ -1,5 +1,5 @@
 // Shared client for the NAS background-removal service.
-// Proxied to clients by functions/withoutbg.ts; called server-side by create-fit-background.ts.
+// Called server-side by create-fit-background.ts and remove-bg-background.ts.
 
 export type BgFormat = 'webp' | 'png'
 

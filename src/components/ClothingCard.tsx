@@ -22,7 +22,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const images = getImages(item)
   const multi = images.length > 1
   const [imgIndex, setImgIndex] = useState(0)
-  const [lightbox, setLightbox] = useState(false)
+  const [lightbox, setLightbox] = useState(!!autoOpen)
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferring, setTransferring] = useState(false)
   // Second transfer step: which target closet + one of its tags to file under.

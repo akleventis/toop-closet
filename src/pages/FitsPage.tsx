@@ -21,12 +21,11 @@ export default function FitsPage() {
   const [editingFit, setEditingFit] = useState<Fit | null>(null)
   const [fitParam] = useState(() => new URLSearchParams(window.location.search).get('fit'))
 
-  // Patch the local list when a generation finishes while this page is mounted. If it finishes
-  // after we've unmounted, the fit is already persisted server-side and shows up on next fetch.
+  // Upsert, not prepend: an adopted job can resolve a fit the initial fetch already returned.
   // Suitcase fits are siloed to their suitcase, so they never join this global list.
-  useEffect(() => subscribe(({ fit, existingId }) => {
+  useEffect(() => subscribe(({ fit }) => {
     if (fit.suitcaseId) return
-    setFits(prev => (existingId ? prev.map(f => (f.id === fit.id ? fit : f)) : [fit, ...prev]))
+    setFits(prev => prev.some(f => f.id === fit.id) ? prev.map(f => (f.id === fit.id ? fit : f)) : [fit, ...prev])
   }), [subscribe])
 
   useEffect(() => {
@@ -60,7 +59,8 @@ export default function FitsPage() {
     }
   }
 
-  const standalonePending = pending.filter(p => !p.existingId)
+  // Suitcase fits live on their suitcase page — an adopted job for one must not render here.
+  const standalonePending = pending.filter(p => !p.existingId && !p.suitcaseId)
   const regeneratingIds = new Set(pending.filter(p => p.existingId).map(p => p.existingId!))
 
   return (
