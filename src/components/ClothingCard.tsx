@@ -122,14 +122,6 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
-        {canRetryBg && (
-          <button
-            onClick={() => onRetryBg?.(item)}
-            className="self-start flex items-center gap-1 min-h-8 px-1.5 rounded border border-[--danger] text-[10px] text-[--danger] hover:bg-[--bg] transition-colors"
-          >
-            ↻ Retry background removal
-          </button>
-        )}
         {showTransfer && !target && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (

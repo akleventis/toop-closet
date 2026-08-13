@@ -49,7 +49,7 @@ export function useBgRemoval({ slug, token, items, setItems, onError, enabled }:
     for (const item of items) {
       if (!item.bgError || reported.current.has(item.id)) continue
       reported.current.add(item.id)
-      onError(`Background removal failed for "${item.name}" — retry from the card.`)
+      onError(`Background removal failed for "${item.name}" — retry from its ⋮ menu.`)
     }
   }, [items, onError, enabled])
 
