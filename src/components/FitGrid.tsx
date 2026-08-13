@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import type { Fit, FitItem } from '../types'
 import type { PendingFit } from '../contexts/fitGenerationContext'
 import type { ToastVariant } from './Toast'
@@ -35,14 +35,16 @@ export default function FitGrid({ fits, pending, regeneratingIds, isOwner, openF
   const [lightboxFit, setLightboxFit] = useState<Fit | null>(null)
   const [lightboxItem, setLightboxItem] = useState<FitItem | null>(null)
 
-  // Open the deep-linked fit once, as soon as it's present in the list.
-  const opened = useRef(false)
-  useEffect(() => {
-    if (opened.current || !openFitId) return
+  // Open the deep-linked fit as soon as it's in the list, and only that once — marking the id
+  // consumed during render keeps reopening off the table when the list refreshes behind the user.
+  const [consumedFitId, setConsumedFitId] = useState<string | null>(null)
+  if (openFitId && openFitId !== consumedFitId) {
     const match = fits.find(f => f.id.startsWith(openFitId))
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- open the deep-linked fit once on arrival
-    if (match) { setLightboxFit(match); opened.current = true }
-  }, [openFitId, fits])
+    if (match) {
+      setConsumedFitId(openFitId)
+      setLightboxFit(match)
+    }
+  }
 
   return (
     <>

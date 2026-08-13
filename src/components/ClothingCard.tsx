@@ -48,12 +48,10 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   // Clamp is derived, not stored — covers an image being removed while viewing.
   const safeIndex = Math.min(imgIndex, Math.max(0, images.length - 1))
 
-  const canRetryBg = isOwner && !!item.bgError && !isProcessing && !!onRetryBg
-
   const menuItems: MenuItem[] = []
   if (isOwner) {
     menuItems.push({ label: 'Edit', onClick: () => onEdit(item) })
-    if (canRetryBg) menuItems.push({ label: 'Retry background removal', onClick: () => onRetryBg?.(item) })
+    if (onRetryBg && item.bgError && !isProcessing) menuItems.push({ label: 'Retry background removal', onClick: () => onRetryBg(item) })
     if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => { if (t) setTarget(null); return !t }) })
     menuItems.push({ label: 'Delete', danger: true, onClick: () => onDelete(item.id) })
   }

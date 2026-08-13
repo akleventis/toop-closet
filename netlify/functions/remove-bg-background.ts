@@ -47,14 +47,12 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
 
   const swapped = new Map<string, string>()   // original URL → cleaned URL
   const source = imagesOf(item)
-  // Sources live in S3, so a failure is retryable without re-uploading — remember what's left.
-  const wanted = indexes.filter(i => Number.isInteger(i) && !!source[i])
-  const done = new Set<number>()
+  // Sources stay in S3, so whatever this run doesn't finish can be retried without re-uploading.
+  const remaining = new Set(indexes.filter(i => source[i]))
   // Netlify answers 202 before this runs, so a returned error never reaches the browser — from
   // here every outcome is reported on the item record instead.
   const finish = async (error?: string): Promise<HandlerResponse> => {
     if (error) console.error(`[remove-bg] ${slug}/${itemId}:`, error)
-    const retry = wanted.filter(i => !done.has(i))
     await patchItem(slug, itemId, i => {
       const urls = imagesOf(i).map(u => swapped.get(u) ?? u)
       return {
@@ -63,7 +61,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
         imageUrls: urls.length > 1 ? urls : undefined,
         bgPendingAt: undefined,
         bgError: error ? BG_ERROR : undefined,
-        bgRetry: error && retry.length ? retry : undefined,
+        bgRetry: error && remaining.size ? [...remaining] : undefined,
       }
     }).catch(() => {})
     return ok
@@ -74,7 +72,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
 
   const ownPrefix = s3PublicUrl(`clothing/${slug}/`)
   try {
-    for (const i of wanted) {
+    for (const i of remaining) {
       const src = source[i]
       // An item's URL is otherwise arbitrary (clothes.ts takes any http(s)), i.e. an SSRF probe.
       if (!src.startsWith(ownPrefix)) return finish(`refusing foreign image url: ${src}`)
@@ -88,7 +86,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
       const Key = `clothing/${slug}/${randomUUID()}`
       await s3.send(new PutObjectCommand({ Bucket, Key, Body: cleaned, ContentType: 'image/webp' }))
       swapped.set(src, s3PublicUrl(Key))
-      done.add(i)
+      remaining.delete(i)   // deleting the current entry mid-iteration is safe on a Set
     }
     // Originals stay: fit/suitcase snapshots may still point at them, so the reaper owns cleanup.
     return finish()

@@ -11,11 +11,12 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f0f0f;
-    --bg-subtle: #1a1a1a;
+    --bg: #151515;
+    --bg-subtle: #232323;
     --text: #ededed;
     --muted: #888;
-    --border: #2e2e2e;
+    /* Also the plate behind item photos (ClothingCard) — kept light enough to separate black clothing. */
+    --border: #3a3a3a;
     --danger: #e05252;
   }
 }

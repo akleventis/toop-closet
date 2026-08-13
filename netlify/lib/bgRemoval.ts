@@ -3,6 +3,10 @@
 
 export type BgFormat = 'webp' | 'png'
 
+// One inference is ~10s, but the NAS runs them one at a time — a concurrent call waits its turn.
+// nginx in front of it 504s at 60s, so there's no point waiting longer than that.
+const TIMEOUT_MS = 60_000
+
 export const bgRemovalConfigured = (): boolean =>
   !!process.env.WITHOUTBG_URL && !!process.env.WITHOUTBG_SECRET
 
@@ -22,7 +26,7 @@ export async function removeBackground(
   formData.append('quality', '85')
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20_000)
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
     const res = await fetch(`${url}/api/remove-background`, {
       method: 'POST',
