@@ -10,7 +10,7 @@ import type { HandlerEvent, HandlerResponse } from '../lib/types.js'
 type Item = {
   id: string; name: string; category: string
   imageUrl: string; imageUrls?: string[]; notes?: string
-  bgPendingAt?: string; bgError?: string
+  bgPendingAt?: string; bgError?: string; bgRetry?: number[]
 }
 
 const Bucket = process.env.S3_BUCKET_NAME
@@ -46,10 +46,15 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
   if (!item) return errorRes(404, 'Item not found')
 
   const swapped = new Map<string, string>()   // original URL → cleaned URL
+  const source = imagesOf(item)
+  // Sources live in S3, so a failure is retryable without re-uploading — remember what's left.
+  const wanted = indexes.filter(i => Number.isInteger(i) && !!source[i])
+  const done = new Set<number>()
   // Netlify answers 202 before this runs, so a returned error never reaches the browser — from
   // here every outcome is reported on the item record instead.
   const finish = async (error?: string): Promise<HandlerResponse> => {
     if (error) console.error(`[remove-bg] ${slug}/${itemId}:`, error)
+    const retry = wanted.filter(i => !done.has(i))
     await patchItem(slug, itemId, i => {
       const urls = imagesOf(i).map(u => swapped.get(u) ?? u)
       return {
@@ -58,20 +63,19 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
         imageUrls: urls.length > 1 ? urls : undefined,
         bgPendingAt: undefined,
         bgError: error ? BG_ERROR : undefined,
+        bgRetry: error && retry.length ? retry : undefined,
       }
     }).catch(() => {})
     return ok
   }
 
   if (!bgRemovalConfigured()) return finish('WITHOUTBG_URL/WITHOUTBG_SECRET not configured')
-  await patchItem(slug, itemId, i => ({ ...i, bgPendingAt: new Date().toISOString(), bgError: undefined }))
+  await patchItem(slug, itemId, i => ({ ...i, bgPendingAt: new Date().toISOString(), bgError: undefined, bgRetry: undefined }))
 
-  const source = imagesOf(item)
   const ownPrefix = s3PublicUrl(`clothing/${slug}/`)
   try {
-    for (const i of indexes) {
+    for (const i of wanted) {
       const src = source[i]
-      if (!src) continue
       // An item's URL is otherwise arbitrary (clothes.ts takes any http(s)), i.e. an SSRF probe.
       if (!src.startsWith(ownPrefix)) return finish(`refusing foreign image url: ${src}`)
       const res = await fetch(src, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
@@ -84,6 +88,7 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
       const Key = `clothing/${slug}/${randomUUID()}`
       await s3.send(new PutObjectCommand({ Bucket, Key, Body: cleaned, ContentType: 'image/webp' }))
       swapped.set(src, s3PublicUrl(Key))
+      done.add(i)
     }
     // Originals stay: fit/suitcase snapshots may still point at them, so the reaper owns cleanup.
     return finish()

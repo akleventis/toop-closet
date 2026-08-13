@@ -13,6 +13,7 @@ type Item = {
   // Written by remove-bg-background, never by a client.
   bgPendingAt?: string
   bgError?: string
+  bgRetry?: number[]
 }
 
 function safeImageUrl(value: unknown): string {

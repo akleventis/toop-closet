@@ -24,6 +24,7 @@ export type ClothingItem = {
   // Written only by remove-bg-background; a fresh bgPendingAt means a job is running.
   bgPendingAt?: string
   bgError?: string
+  bgRetry?: number[]   // image slots that still need removal after a failure — retry needs no re-upload
 }
 
 // Longer than the NAS timeout + upload; past this a bgPendingAt is a crashed job, not a live one.

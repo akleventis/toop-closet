@@ -260,6 +260,7 @@ export default function App() {
                 onEdit={item => setModal({ mode: 'edit', item })}
                 onDelete={handleDelete}
                 onTransfer={canEdit ? handleTransferItem : undefined}
+                onRetryBg={canEdit ? bgRemoval.retry : undefined}
                 onShare={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/${slug}?item=${item.id.slice(0, 8)}`)
                   showToast('Link copied!')

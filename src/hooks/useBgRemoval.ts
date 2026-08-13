@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { fetchItems, startBgRemoval } from '../api'
-import { isBgPending } from '../types'
+import { isBgPending, getImages } from '../types'
 import type { ClothingItem } from '../types'
 
 const POLL_MS = 4000
@@ -49,19 +49,25 @@ export function useBgRemoval({ slug, token, items, setItems, onError, enabled }:
     for (const item of items) {
       if (!item.bgError || reported.current.has(item.id)) continue
       reported.current.add(item.id)
-      onError(`Background removal failed for "${item.name}".`)
+      onError(`Background removal failed for "${item.name}" — retry from the card.`)
     }
   }, [items, onError, enabled])
 
   const start = (itemId: string, indexes: number[]) => {
     const at = new Date().toISOString()
     reported.current.delete(itemId)
-    setItems(prev => prev.map(i => (i.id === itemId ? { ...i, bgPendingAt: at, bgError: undefined } : i)))
+    setItems(prev => prev.map(i => (i.id === itemId ? { ...i, bgPendingAt: at, bgError: undefined, bgRetry: undefined } : i)))
     startBgRemoval(slug, itemId, indexes, token).catch(() => {
       setItems(prev => prev.map(i => (i.id === itemId ? { ...i, bgPendingAt: undefined } : i)))
       onError('Could not start background removal.')
     })
   }
 
-  return { start }
+  // The photos are already in S3, so a failed job re-runs on the slots it never finished.
+  const retry = (item: ClothingItem) => {
+    const indexes = item.bgRetry?.length ? item.bgRetry : getImages(item).map((_, i) => i)
+    if (indexes.length) start(item.id, indexes)
+  }
+
+  return { start, retry }
 }

@@ -15,10 +15,11 @@ type Props = {
   onEdit: (item: ClothingItem) => void
   onDelete: (id: string) => void
   onTransfer?: (item: ClothingItem, targetSlug: string, category: string) => Promise<void>
+  onRetryBg?: (item: ClothingItem) => void
   onShare?: () => void
 }
 
-export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], autoOpen, onEdit, onDelete, onTransfer, onShare }: Props) {
+export default function ClothingCard({ item, isOwner, isProcessing, otherClosets = [], autoOpen, onEdit, onDelete, onTransfer, onRetryBg, onShare }: Props) {
   const images = getImages(item)
   const multi = images.length > 1
   const [imgIndex, setImgIndex] = useState(0)
@@ -47,9 +48,12 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   // Clamp is derived, not stored — covers an image being removed while viewing.
   const safeIndex = Math.min(imgIndex, Math.max(0, images.length - 1))
 
+  const canRetryBg = isOwner && !!item.bgError && !isProcessing && !!onRetryBg
+
   const menuItems: MenuItem[] = []
   if (isOwner) {
     menuItems.push({ label: 'Edit', onClick: () => onEdit(item) })
+    if (canRetryBg) menuItems.push({ label: 'Retry background removal', onClick: () => onRetryBg?.(item) })
     if (onTransfer && otherClosets.length > 0) menuItems.push({ label: 'Transfer', onClick: () => setShowTransfer(t => { if (t) setTarget(null); return !t }) })
     menuItems.push({ label: 'Delete', danger: true, onClick: () => onDelete(item.id) })
   }
@@ -118,6 +122,14 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
         <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+        {canRetryBg && (
+          <button
+            onClick={() => onRetryBg?.(item)}
+            className="self-start flex items-center gap-1 min-h-8 px-1.5 rounded border border-[--danger] text-[10px] text-[--danger] hover:bg-[--bg] transition-colors"
+          >
+            ↻ Retry background removal
+          </button>
+        )}
         {showTransfer && !target && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (
