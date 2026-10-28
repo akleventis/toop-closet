@@ -58,7 +58,6 @@ export function useAuth() {
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
     if (currentUser && t) loadProfile(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -81,7 +80,6 @@ export function useAuth() {
       netlifyIdentity.off('login', handleLogin)
       netlifyIdentity.off('logout', handleLogout)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const login = IS_DEV ? () => {} : () => netlifyIdentity.open()

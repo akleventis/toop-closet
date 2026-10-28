@@ -17,7 +17,7 @@ const shared = {
 }
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', '.netlify']),
   {
     ...shared,
     files: ['**/*.{js,jsx}'],

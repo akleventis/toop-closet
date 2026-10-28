@@ -23,11 +23,18 @@ dist-ssr
 *.sln
 *.sw?
 
-.env.local
-.env
+# env files (secrets come from 1Password via .env.tpl)
+.env*
+!.env.tpl
+!.env.example
 .netlify
 deno.lock
 CLAUDE.md
 .claude
 /docs
 scripts/reap-orphans.mjs
+
+# data never goes in git
+*.csv
+*.db
+*.sqlite

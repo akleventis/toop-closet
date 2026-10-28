@@ -1,2 +1,26 @@
 [tools]
 node = "24"
+gitleaks = "8"
+
+[tasks.setup]
+description = "Install the secret-scanning hook and dependencies"
+run = [
+  "git config core.hooksPath .githooks",
+  "npm ci",
+]
+
+[tasks.dev]
+description = "netlify dev: Vite + functions on http://localhost:8888 (reads .env.local)"
+run = "npx netlify dev"
+
+[tasks.build]
+description = "Production build"
+run = "npm run build"
+
+[tasks.test]
+description = "No tests yet"
+run = "echo 'No tests yet'"
+
+[tasks.lint]
+description = "ESLint and a TypeScript check"
+run = ["npm run lint", "npx tsc --noEmit"]

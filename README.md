@@ -257,13 +257,18 @@ When bg removal is toggled on, the item saves immediately with the raw image and
 
 https://github.com/user-attachments/assets/e52cdc9c-ac42-45f1-858b-7072b894cf0a
 
-### Local dev
+### Setup
 
 ```bash
-npx netlify dev   # http://localhost:8888
+mise install                          # Node 24 (pinned in mise.toml)
+mise run setup                        # secret-scanning hook + npm ci
+op inject -i .env.tpl -o .env.local   # secrets from 1Password
+mise run dev                          # netlify dev, http://localhost:8888
 ```
 
-Netlify Identity is bypassed in local dev — set `OWNER_EMAIL` in `.env.local` and the backend returns a fake authenticated user automatically. See `docs/CONFIG.md` for full setup.
+Secrets: 1Password, **Dev** vault, item **`toop-closet`**. Variables are listed in `.env.example`.
+
+Netlify Identity is bypassed in local dev — set `OWNER_EMAIL` in `.env.local` and the backend returns a fake authenticated user automatically. See `docs/CONFIG.md` for full setup (kept local, not in the public repo).
 
 ---
 
