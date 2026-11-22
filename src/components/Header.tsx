@@ -59,7 +59,6 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
     ...(onDeleteCloset ? [{ label: 'Delete closet', danger: true, onClick: onDeleteCloset }] : []),
   ]
 
-  // a suitcase's page steps back to the suitcase list, not all the way to closets
   const inSuitcase = location.pathname.startsWith('/suitcases/')
   const back = inSuitcase
     ? { to: '/suitcases', label: 'Back to suitcases' }
