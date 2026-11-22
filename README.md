@@ -79,7 +79,8 @@ toop-closet/                        ← the bucket
 > Each fit is its own object under `fits/items/` rather than rows in one big
 > `index.json` — generating or editing fits only ever touches independent keys,
 > so two creates can't clobber each other. Job files under `fits/_jobs/` are
-> deleted as soon as the browser reads a terminal result.
+> never deleted on read (a second device must still see the outcome) — the
+> browser acks them once it has the result, and a lifecycle rule ages out the rest.
 
 **Data shapes:**
 
@@ -148,9 +149,9 @@ A *workspace* is an owner email; `ownerEmail` on every closet/fit/suitcase says 
 }
 ```
 
-`fits/_jobs/{jobId}.json` — transient generation result, deleted on the first terminal read:
+`fits/_jobs/{jobId}.json` — transient generation job, written before generation starts; the fit itself is committed server-side, so a finished job only points at it (`ownerEmail` is stripped before the client sees it):
 ```json
-{ "status": "done", "imageBase64": "<webp bytes, base64>" }
+{ "jobId": "…", "status": "done", "fitId": "9c0361a18a5c", "startedAt": "2026-06-27T18:20:00.000Z", "items": [ … ], "ownerEmail": "mail@tooper.io" }
 ```
 
 **Auth & workspaces:**
