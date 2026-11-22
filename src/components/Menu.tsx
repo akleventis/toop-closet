@@ -16,7 +16,7 @@ export default function Menu({ items, align = 'right' }: { items: MenuItem[]; al
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-8 h-8 flex items-center justify-center rounded text-(--muted) hover:text-(--text) transition-colors text-base leading-none"
+        className="w-5 h-8 flex items-center justify-center rounded text-(--muted) hover:text-(--text) transition-colors text-base leading-none"
         style={{ touchAction: 'manipulation' }}
       >
         ⋮
