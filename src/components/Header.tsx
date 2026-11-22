@@ -72,7 +72,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
             {onSubPage ? (
               <Link
                 to={backHref}
-                className="flex items-center gap-1 text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0"
+                className="flex items-center gap-1 text-xs text-(--muted) hover:text-(--text) transition-colors shrink-0"
               >
                 <span aria-hidden="true">←</span> Back
               </Link>
@@ -89,7 +89,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                       <Link
                         key={c.slug}
                         to={`/${c.slug}`}
-                        className={`text-xs tracking-wide transition-colors shrink-0 ${isActive ? 'text-(--text)' : 'text-(--muted) hover:text-(--text)'}`}
+                        className={`text-xs transition-colors shrink-0 ${isActive ? 'text-(--text)' : 'text-(--muted) hover:text-(--text)'}`}
                       >
                         {label}
                       </Link>
@@ -104,13 +104,13 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
                   <Link
                     to="/fits"
-                    className="text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0"
+                    className="text-xs text-(--muted) hover:text-(--text) transition-colors shrink-0"
                   >
                     Fits
                   </Link>
                   <Link
                     to="/suitcases"
-                    className="text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0 ml-3"
+                    className="text-xs text-(--muted) hover:text-(--text) transition-colors shrink-0 ml-3"
                   >
                     Suitcases
                   </Link>
