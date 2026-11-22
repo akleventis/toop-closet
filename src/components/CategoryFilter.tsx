@@ -95,30 +95,31 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
   return (
     <div className="my-5">
       <div className="flex items-center gap-1 min-h-8">
-        <div className="relative w-24 shrink-0">
-          {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
-          <input
-            type="text"
-            enterKeyHint="search"
-            placeholder="Search…"
-            value={searchQuery}
-            onChange={e => onSearchChange(e.target.value)}
-            className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-(--text) placeholder-(--muted) focus:outline-none bg-(--bg-subtle)"
-          />
-          {searchQuery && (
-            <button
-              aria-label="Clear search"
-              onClick={() => onSearchChange('')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-(--muted) hover:text-(--text) transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-          )}
-        </div>
-        <div className="flex gap-1 overflow-x-auto scrollbar-none pb-0.5 flex-1">
+        {/* h-8 fits the 32px clear button, so the scroller never scrolls vertically */}
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none h-8 flex-1">
+          <div className="relative w-24 shrink-0">
+            {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
+            <input
+              type="text"
+              enterKeyHint="search"
+              placeholder="Search…"
+              value={searchQuery}
+              onChange={e => onSearchChange(e.target.value)}
+              className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-(--text) placeholder-(--muted) focus:outline-none bg-(--bg-subtle)"
+            />
+            {searchQuery && (
+              <button
+                aria-label="Clear search"
+                onClick={() => onSearchChange('')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-(--muted) hover:text-(--text) transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            )}
+          </div>
           {categories.map(cat => (
             <button
               key={cat}
