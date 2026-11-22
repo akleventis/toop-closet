@@ -73,7 +73,7 @@ export default function App() {
         setLoading(false)
         if (itemParam) {
           const match = data.find(i => i.id.startsWith(itemParam))
-          if (match) { setSharedItemId(match.id); setCategory(match.category) }
+          if (match) setSharedItemId(match.id)
           window.history.replaceState({}, '', window.location.pathname)
         }
       })
