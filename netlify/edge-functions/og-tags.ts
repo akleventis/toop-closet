@@ -5,7 +5,7 @@ type Context = { next(): Promise<Response> }
 type FitItem = { itemId: string; slug: string; name: string; imageUrl: string }
 type Item = { id: string; name: string; category: string; imageUrl: string; imageUrls?: string[]; notes?: string }
 type Fit = { id: string; name?: string; imageUrl: string; items: FitItem[] }
-type Suitcase = { id: string; name?: string; items: FitItem[] }
+type Suitcase = { id: string; name?: string }
 type Preview = { title: string; description?: string; image?: string; large: boolean }
 
 const SITE = 'MM6'
@@ -49,10 +49,7 @@ async function preview(url: URL): Promise<Preview | null> {
     }
     const suitcase = (await getJson<Suitcase[]>(url.origin, `suitcases?id=${second}`))?.[0]
     if (!suitcase) return null
-    const n = suitcase.items.length
-    // suitcases have no image of their own; borrow the first packed item's
-    const image = suitcase.items[0]?.imageUrl
-    return { title: suitcase.name || 'Suitcase', description: `${n} item${n === 1 ? '' : 's'} packed`, image, large: !!image }
+    return { title: suitcase.name || 'Suitcase', large: false }
   }
 
   const itemId = url.searchParams.get('item')
