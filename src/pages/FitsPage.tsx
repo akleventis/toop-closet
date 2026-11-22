@@ -69,21 +69,22 @@ export default function FitsPage() {
 
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <div className="flex items-center justify-between my-5">
-          <h1 className="text-sm font-semibold text-[--text]">Fits</h1>
+          <h1 className="text-sm font-semibold text-(--text)">Fits</h1>
           {isOwner && (
             <button
               onClick={() => setBuilding(true)}
-              className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-xs font-medium"
+              title="Create fit"
+              className="text-(--muted) hover:text-(--text) transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
             >
-              + Create fit
+              +
             </button>
           )}
         </div>
 
         {loading ? (
-          <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
+          <p className="text-(--muted) text-sm text-center mt-16">Loading…</p>
         ) : fits.length === 0 && standalonePending.length === 0 ? (
-          <p className="text-[--muted] text-sm text-center mt-16">No fits yet.</p>
+          <p className="text-(--muted) text-sm text-center mt-16">No fits yet.</p>
         ) : (
           <FitGrid
             fits={fits}

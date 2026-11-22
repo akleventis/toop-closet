@@ -59,9 +59,9 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const currentImg = images[safeIndex] ?? ''
 
   return (
-    <div className="bg-[--bg-subtle] border border-[--border] rounded-lg flex flex-col">
+    <div className="border border-(--border) rounded-lg flex flex-col">
       <div
-        className="w-full aspect-square overflow-hidden bg-[--border] relative rounded-t-lg"
+        className="w-full aspect-square overflow-hidden relative rounded-t-lg"
         onTouchStart={e => { touchStartX.current = e.touches[0].clientX; didSwipe.current = false }}
         onTouchEnd={e => {
           const delta = touchStartX.current - e.changedTouches[0].clientX
@@ -87,10 +87,10 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
           </>
         ) : isProcessing ? (
           <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-[--muted]/30 border-t-[--text] rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-(--muted)/30 border-t-(--text) rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-[--muted] text-xs">No photo</div>
+          <div className="flex items-center justify-center h-full text-(--muted) text-xs">No photo</div>
         )}
 
         {multi && !isProcessing && (
@@ -116,17 +116,17 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
         <div className="flex items-center justify-between gap-1">
-          <div className="font-medium text-xs truncate">{item.name}</div>
+          <div className="text-xs truncate">{item.name}</div>
           {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
         <div className="flex items-center justify-between gap-1">
-          <span className="text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded border border-(--border) text-(--muted)">{item.category}</span>
           {onShare && (
             // -my-2 keeps the 32px tap target without making the tag row taller
             <button
               aria-label="Share"
               onClick={e => { e.stopPropagation(); onShare() }}
-              className="w-8 h-8 -my-2 flex items-center justify-center rounded text-[--muted] hover:text-[--text] transition-colors"
+              className="w-8 h-8 -my-2 flex items-center justify-center rounded text-(--muted) hover:text-(--text) transition-colors"
               style={{ touchAction: 'manipulation' }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -151,24 +151,23 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                   } catch { setTransferError(true) }
                   finally { setLoadingTarget(null) }
                 }}
-                className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors"
+                className="px-2 py-0.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) disabled:opacity-40 transition-colors"
               >
                 {loadingTarget === c.slug ? '…' : `→ ${c.name ?? c.slug}`}
               </button>
             ))}
-            {transferError && <span className="text-[--danger] text-[10px] w-full">Couldn't load tags. Try again.</span>}
+            {transferError && <span className="text-(--danger) text-[10px] w-full">Couldn't load tags. Try again.</span>}
           </div>
         )}
         {showTransfer && target && (
           <div className="flex flex-col gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
-            <span className="text-[10px] text-[--muted] truncate">Tag in {target.name ?? target.slug}</span>
+            <span className="text-[10px] text-(--muted) truncate">Tag in {target.name ?? target.slug}</span>
             <div className="flex items-center gap-1.5">
               <select
                 value={targetCat}
                 onChange={e => setTargetCat(e.target.value)}
                 disabled={transferring}
-                className="flex-1 min-w-0 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] disabled:opacity-40"
-                style={{ backgroundColor: 'var(--bg)' }}
+                className="flex-1 min-w-0 px-1.5 py-0.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) disabled:opacity-40"
               >
                 {target.categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -179,7 +178,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                   try { await onTransfer?.(item, target.slug, targetCat) }
                   finally { setTransferring(false); setShowTransfer(false); setTarget(null) }
                 }}
-                className="px-2 py-0.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] disabled:opacity-40 transition-colors shrink-0"
+                className="px-2 py-0.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) disabled:opacity-40 transition-colors shrink-0"
               >
                 {transferring ? '…' : 'Move'}
               </button>

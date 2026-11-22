@@ -11,9 +11,9 @@ function Thumbs({ items }: { items: FitItem[] }) {
   return (
     <>
       {items.slice(0, 5).map(item => (
-        <img key={`${item.slug}-${item.itemId}`} src={item.imageUrl} alt={item.name} className="w-6 h-6 rounded object-cover border border-[--border] shrink-0" />
+        <img key={`${item.slug}-${item.itemId}`} src={item.imageUrl} alt={item.name} className="w-6 h-6 rounded object-cover border border-(--border) shrink-0" />
       ))}
-      {items.length > 5 && <span className="text-[10px] text-[--muted] self-center">+{items.length - 5}</span>}
+      {items.length > 5 && <span className="text-[10px] text-(--muted) self-center">+{items.length - 5}</span>}
     </>
   )
 }
@@ -50,19 +50,19 @@ export default function FitGrid({ fits, pending, regeneratingIds, isOwner, openF
     <>
       <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
         {pending.map(p => (
-          <div key={p.jobId} className="rounded-lg border border-[--border] flex flex-col">
-            <div className="relative aspect-square bg-[--bg-subtle] rounded-t-lg overflow-hidden flex items-center justify-center">
+          <div key={p.jobId} className="rounded-lg border border-(--border) flex flex-col">
+            <div className="relative aspect-square rounded-t-lg overflow-hidden flex items-center justify-center">
               <Spinner size={28} />
             </div>
             <div className="p-2.5">
-              {p.name && <div className="text-xs font-medium text-[--text] truncate">{p.name}</div>}
+              {p.name && <div className="text-xs font-medium text-(--text) truncate">{p.name}</div>}
               <div className="flex gap-1 mt-1.5 overflow-hidden"><Thumbs items={p.items} /></div>
             </div>
           </div>
         ))}
         {fits.map(fit => (
-          <div key={fit.id} className="rounded-lg border border-[--border] hover:border-[--text] transition-colors flex flex-col">
-            <button onClick={() => setLightboxFit(fit)} className="relative block aspect-square bg-[--bg-subtle] cursor-zoom-in rounded-t-lg overflow-hidden">
+          <div key={fit.id} className="rounded-lg border border-(--border) hover:border-(--text) transition-colors flex flex-col">
+            <button onClick={() => setLightboxFit(fit)} className="relative block aspect-square cursor-zoom-in rounded-t-lg overflow-hidden">
               <img src={fit.imageUrl} alt={fit.name} className="w-full h-full object-cover" />
               {regeneratingIds.has(fit.id) && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -72,7 +72,7 @@ export default function FitGrid({ fits, pending, regeneratingIds, isOwner, openF
             </button>
             <div className="p-2.5">
               <div className="flex items-start justify-between gap-1">
-                <button onClick={() => setLightboxFit(fit)} className="text-xs font-medium text-[--text] truncate text-left min-w-0 flex-1">
+                <button onClick={() => setLightboxFit(fit)} className="text-xs font-medium text-(--text) truncate text-left min-w-0 flex-1">
                   {fit.name}
                 </button>
                 {isOwner && (

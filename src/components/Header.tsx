@@ -66,13 +66,13 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
   return (
     <>
-      <header className="px-3 sm:px-4 py-4 max-w-4xl mx-auto border-b border-[--border] mb-1">
-        <div className="flex items-center justify-between gap-2">
+      <header className="px-3 sm:px-4 py-3 max-w-4xl mx-auto border-b border-(--border) mb-1">
+        <div className="flex items-center justify-between gap-2 min-h-8">
           <div className="flex items-center gap-1 min-w-0 flex-1">
             {onSubPage ? (
               <Link
                 to={backHref}
-                className="flex items-center gap-1 text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
+                className="flex items-center gap-1 text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0"
               >
                 <span aria-hidden="true">←</span> Back
               </Link>
@@ -89,7 +89,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                       <Link
                         key={c.slug}
                         to={`/${c.slug}`}
-                        className={`text-xs tracking-wide transition-colors shrink-0 ${isActive ? 'text-[--text] underline underline-offset-4' : 'text-[--muted] hover:text-[--text]'}`}
+                        className={`text-xs tracking-wide transition-colors shrink-0 ${isActive ? 'text-(--text)' : 'text-(--muted) hover:text-(--text)'}`}
                       >
                         {label}
                       </Link>
@@ -100,19 +100,19 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                 <div className="flex items-center shrink-0">
                   {closetMenuItems.length > 0 && <Menu items={closetMenuItems} align="left" />}
 
-                  <span className="w-px h-4 bg-[--border] shrink-0 mx-2" aria-hidden="true" />
+                  <span className="w-px h-4 bg-(--border) shrink-0 mx-2" aria-hidden="true" />
 
                   <Link
                     to="/fits"
-                    className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
+                    className="text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0"
                   >
-                    fits
+                    Fits
                   </Link>
                   <Link
                     to="/suitcases"
-                    className="text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0 ml-3"
+                    className="text-xs tracking-wide text-(--muted) hover:text-(--text) transition-colors shrink-0 ml-3"
                   >
-                    suitcases
+                    Suitcases
                   </Link>
                 </div>
               </>
@@ -121,11 +121,11 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
 
           <div className="flex items-center gap-2 shrink-0">
             {user ? (
-              <button onClick={onLogout} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors whitespace-nowrap">
+              <button onClick={onLogout} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-(--muted) hover:text-(--text) transition-colors whitespace-nowrap">
                 Log out
               </button>
             ) : (
-              <button onClick={onLogin} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-[--muted] hover:text-[--text] transition-colors whitespace-nowrap">
+              <button onClick={onLogin} className="px-1.5 sm:px-2.5 py-0.5 text-xs text-(--muted) hover:text-(--text) transition-colors whitespace-nowrap">
                 Log in
               </button>
             )}
@@ -136,22 +136,22 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
       {creating && (
         <Modal onClose={handleClose}>
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold text-[--text]">New closet</h2>
+            <h2 className="text-sm font-semibold text-(--text)">New closet</h2>
             <input
               autoFocus
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="Closet name"
               maxLength={60}
-              className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              className="px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
               disabled={createLoading}
             />
-            {createError && <p className="text-[--danger] text-sm">{createError}</p>}
+            {createError && <p className="text-(--danger) text-sm">{createError}</p>}
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={handleClose} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors">
+              <button type="button" onClick={handleClose} className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors">
                 Cancel
               </button>
-              <button type="submit" disabled={createLoading || !newName.trim()} className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              <button type="submit" disabled={createLoading || !newName.trim()} className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40">
                 {createLoading ? '…' : 'Create'}
               </button>
             </div>
