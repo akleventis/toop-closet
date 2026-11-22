@@ -8,8 +8,7 @@ export default function Modal({ onClose, locked = false, children }: { onClose: 
       onClick={locked ? undefined : onClose}
     >
       <div
-        className="rounded-lg border border-[--border] p-6 w-full max-w-sm flex flex-col gap-4"
-        style={{ backgroundColor: 'var(--bg)' }}
+        className="rounded-lg border border-(--border) p-6 w-full max-w-sm flex flex-col gap-4 bg-(--bg)"
         onClick={e => e.stopPropagation()}
       >
         {children}

@@ -97,6 +97,10 @@ export default function App() {
     return base
   }, [items, category, categories, searchQuery])
 
+  // a closet outside the nav's list (another workspace's, while logged out) still shows as the active one
+  const baseNav = isOwner ? userClosets : allClosets
+  const navClosets = !slug || baseNav.some(c => c.slug === slug) ? baseNav : [...baseNav, { slug, name: closetName }]
+
   if (!slug) return null
 
   const handleSave = async (item: SavePayload, bgIndexes?: number[]) => {
@@ -220,7 +224,7 @@ export default function App() {
     <div className="min-h-screen">
       <Header
         slug={slug}
-        closets={isOwner ? userClosets : allClosets}
+        closets={navClosets}
         user={user}
         onLogin={login}
         onLogout={logout}
@@ -231,18 +235,20 @@ export default function App() {
         activeWorkspace={activeWorkspace}
         onSwitchWorkspace={handleSwitchWorkspace}
       />
-      <main className="max-w-4xl mx-auto px-4 pb-16">
+      <main className="max-w-4xl mx-auto px-4 pb-12">
         <CategoryFilter
           categories={allCategories}
           active={category}
           onChange={setCategory}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
           onAdd={canEdit ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
           onSaveTagEdits={canEdit ? handleSaveTagEdits : undefined}
         />
         {loading ? (
-          <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
+          <p className="text-(--muted) text-sm text-center mt-16">Loading…</p>
         ) : filtered.length === 0 ? (
-          <p className="text-[--muted] text-sm text-center mt-16">
+          <p className="text-(--muted) text-sm text-center mt-16">
             {items.length === 0 ? 'No items yet.' : searchQuery.trim() ? 'No items match your search.' : 'No items in this category.'}
           </p>
         ) : (
@@ -268,37 +274,6 @@ export default function App() {
           </div>
         )}
       </main>
-      <footer
-        className="fixed bottom-0 inset-x-0 z-40"
-        style={{ backgroundColor: 'var(--bg)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="max-w-4xl mx-auto px-4 py-1.5">
-          <div className="relative w-36">
-            {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
-            <input
-              type="text"
-              enterKeyHint="search"
-              placeholder="Search…"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none"
-              style={{ backgroundColor: 'var(--bg-subtle)' }}
-            />
-            {searchQuery && (
-              <button
-                aria-label="Clear search"
-                onClick={() => setSearchQuery('')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-[--muted] hover:text-[--text] transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-      </footer>
       {modal && canEdit && (
         <ItemModal
           modal={modal}
@@ -311,21 +286,21 @@ export default function App() {
       )}
       {confirmDeleteId && (
         <Modal locked={!!deletingId} onClose={() => { setConfirmDeleteId(null); setDeleteError(null) }}>
-          <h2 className="text-base font-semibold text-[--text]">Delete item?</h2>
-          <p className="text-sm text-[--muted]">This item will be permanently removed.</p>
-          {deleteError && <p className="text-[--danger] text-xs">{deleteError}</p>}
+          <h2 className="text-sm font-semibold text-(--text)">Delete item?</h2>
+          <p className="text-xs text-(--muted)">This item will be permanently removed.</p>
+          {deleteError && <p className="text-(--danger) text-xs">{deleteError}</p>}
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => { setConfirmDeleteId(null); setDeleteError(null) }}
               disabled={!!deletingId}
-              className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirmDelete}
               disabled={!!deletingId}
-              className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40"
+              className="px-3 py-1 bg-(--danger) text-white rounded text-xs font-medium disabled:opacity-40"
             >
               {deletingId ? '…' : 'Delete'}
             </button>
@@ -335,29 +310,29 @@ export default function App() {
       {renamingCloset && (
         <Modal locked={renameLoading} onClose={() => { setRenamingCloset(false); setRenameClosetError(null) }}>
           <form onSubmit={handleRenameCloset} className="flex flex-col gap-4">
-            <h2 className="text-base font-semibold text-[--text]">Rename closet</h2>
+            <h2 className="text-sm font-semibold text-(--text)">Rename closet</h2>
             <input
               autoFocus
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
               maxLength={60}
-              className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              className="px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
               disabled={renameLoading}
             />
-            {renameClosetError && <p className="text-[--danger] text-xs">{renameClosetError}</p>}
+            {renameClosetError && <p className="text-(--danger) text-xs">{renameClosetError}</p>}
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => { setRenamingCloset(false); setRenameClosetError(null) }}
                 disabled={renameLoading}
-                className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+                className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={renameLoading || !renameValue.trim()}
-                className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40"
+                className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40"
               >
                 {renameLoading ? '…' : 'Save'}
               </button>
@@ -367,21 +342,21 @@ export default function App() {
       )}
       {confirmingDelete && (
         <Modal locked={deleteClosetLoading} onClose={() => { setConfirmingDelete(false); setDeleteClosetError(null) }}>
-          <h2 className="text-base font-semibold text-[--text]">Delete closet</h2>
-          <p className="text-sm text-[--muted]">Delete <strong className="text-[--text]">{closetName ?? slug}</strong>? All items will be permanently removed.</p>
-          {deleteClosetError && <p className="text-[--danger] text-xs">{deleteClosetError}</p>}
+          <h2 className="text-sm font-semibold text-(--text)">Delete closet</h2>
+          <p className="text-xs text-(--muted)">Delete <strong className="text-(--text)">{closetName ?? slug}</strong>? All items will be permanently removed.</p>
+          {deleteClosetError && <p className="text-(--danger) text-xs">{deleteClosetError}</p>}
           <div className="flex gap-2 justify-end">
             <button
               onClick={() => { setConfirmingDelete(false); setDeleteClosetError(null) }}
               disabled={deleteClosetLoading}
-              className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteCloset}
               disabled={deleteClosetLoading}
-              className="px-3.5 py-1.5 bg-[--danger] text-white rounded text-sm font-medium disabled:opacity-40"
+              className="px-3 py-1 bg-(--danger) text-white rounded text-xs font-medium disabled:opacity-40"
             >
               {deleteClosetLoading ? '…' : 'Delete'}
             </button>

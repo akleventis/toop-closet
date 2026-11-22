@@ -72,34 +72,35 @@ export default function SuitcasesPage() {
 
       <main className="max-w-4xl mx-auto px-4 pb-12">
         <div className="flex items-center justify-between my-5">
-          <h1 className="text-sm font-semibold text-[--text]">Suitcases</h1>
+          <h1 className="text-sm font-semibold text-(--text)">Suitcases</h1>
           {isOwner && (
             <button
               onClick={() => { setNewName(''); setCreateLoading(false); setCreating(true) }}
-              className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-xs font-medium"
+              title="New suitcase"
+              className="text-(--muted) hover:text-(--text) transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
             >
-              + New suitcase
+              +
             </button>
           )}
         </div>
 
         {loading ? (
-          <p className="text-[--muted] text-sm text-center mt-16">Loading…</p>
+          <p className="text-(--muted) text-sm text-center mt-16">Loading…</p>
         ) : suitcases.length === 0 ? (
-          <p className="text-[--muted] text-sm text-center mt-16">No suitcases yet.</p>
+          <p className="text-(--muted) text-sm text-center mt-16">No suitcases yet.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {suitcases.map(suitcase => (
               <div
                 key={suitcase.id}
-                className="rounded-lg border border-[--border] hover:border-[--text] transition-colors flex flex-col"
+                className="rounded-lg border border-(--border) hover:border-(--text) transition-colors flex flex-col"
               >
                 <Link
                   to={`/suitcases/${suitcase.id}`}
-                  className="relative block aspect-square bg-[--bg-subtle] rounded-t-lg overflow-hidden p-3"
+                  className="relative block aspect-square rounded-t-lg overflow-hidden p-3"
                 >
                   {suitcase.items.length === 0 ? (
-                    <div className="w-full h-full flex items-center justify-center text-[--muted] text-xs">Empty</div>
+                    <div className="w-full h-full flex items-center justify-center text-(--muted) text-xs">Empty</div>
                   ) : (
                     <div className="grid grid-cols-2 gap-1.5 w-full h-full">
                       {suitcase.items.slice(0, 4).map(item => (
@@ -110,8 +111,8 @@ export default function SuitcasesPage() {
                 </Link>
                 <div className="p-2.5 flex items-center justify-between gap-1">
                   <Link to={`/suitcases/${suitcase.id}`} className="min-w-0 flex-1">
-                    <div className="text-xs font-medium text-[--text] truncate">{suitcase.name ?? 'Untitled'}</div>
-                    <div className="text-[10px] text-[--muted]">{suitcase.items.length} item{suitcase.items.length === 1 ? '' : 's'}</div>
+                    <div className="text-xs font-medium text-(--text) truncate">{suitcase.name ?? 'Untitled'}</div>
+                    <div className="text-[10px] text-(--muted)">{suitcase.items.length} item{suitcase.items.length === 1 ? '' : 's'}</div>
                   </Link>
                   {isOwner && (
                     <Menu
@@ -131,22 +132,21 @@ export default function SuitcasesPage() {
       {creating && (
         <Modal locked={createLoading} onClose={() => setCreating(false)}>
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold text-[--text]">New suitcase</h2>
+            <h2 className="text-sm font-semibold text-(--text)">New suitcase</h2>
             <input
               autoFocus
               value={newName}
               onChange={e => setNewName(e.target.value)}
               placeholder="e.g. Lisbon trip"
               maxLength={60}
-              className="px-3 py-2 border border-[--border] rounded bg-[--bg] text-[--text] focus:outline-none w-full"
-              style={{ fontSize: '16px' }}
+              className="px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
               disabled={createLoading}
             />
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setCreating(false)} disabled={createLoading} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40">
+              <button type="button" onClick={() => setCreating(false)} disabled={createLoading} className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40">
                 Cancel
               </button>
-              <button type="submit" disabled={createLoading} className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              <button type="submit" disabled={createLoading} className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40">
                 {createLoading ? '…' : 'Create'}
               </button>
             </div>
@@ -157,21 +157,20 @@ export default function SuitcasesPage() {
       {renaming && (
         <Modal locked={renameLoading} onClose={() => setRenaming(null)}>
           <form onSubmit={handleRename} className="flex flex-col gap-4">
-            <h2 className="text-sm font-semibold text-[--text]">Rename suitcase</h2>
+            <h2 className="text-sm font-semibold text-(--text)">Rename suitcase</h2>
             <input
               autoFocus
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
               maxLength={60}
-              className="px-3 py-2 border border-[--border] rounded bg-[--bg] text-[--text] focus:outline-none w-full"
-              style={{ fontSize: '16px' }}
+              className="px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
               disabled={renameLoading}
             />
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setRenaming(null)} disabled={renameLoading} className="px-3.5 py-1.5 border border-[--border] rounded text-sm hover:bg-[--bg-subtle] transition-colors disabled:opacity-40">
+              <button type="button" onClick={() => setRenaming(null)} disabled={renameLoading} className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40">
                 Cancel
               </button>
-              <button type="submit" disabled={renameLoading} className="px-3.5 py-1.5 bg-[--text] text-[--bg] rounded text-sm font-medium disabled:opacity-40">
+              <button type="submit" disabled={renameLoading} className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40">
                 {renameLoading ? '…' : 'Save'}
               </button>
             </div>

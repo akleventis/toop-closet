@@ -7,11 +7,13 @@ type Props = {
   categories: string[]
   active: string
   onChange: (cat: string) => void
+  searchQuery: string
+  onSearchChange: (q: string) => void
   onAdd?: () => void
   onSaveTagEdits?: (opts: { finalList: string[]; renames: { from: string; to: string }[] }) => Promise<void>
 }
 
-export default function CategoryFilter({ categories, active, onChange, onAdd, onSaveTagEdits }: Props) {
+export default function CategoryFilter({ categories, active, onChange, searchQuery, onSearchChange, onAdd, onSaveTagEdits }: Props) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editTags, setEditTags] = useState<EditTag[]>([])
   const [editLoading, setEditLoading] = useState(false)
@@ -87,12 +89,35 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
   }
 
   const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
-  const activePill = `${pillBase} text-[--text] underline underline-offset-4`
-  const inactivePill = `${pillBase} text-[--muted] hover:text-[--text] hover:bg-[--bg-subtle]`
+  const activePill = `${pillBase} text-(--text)`
+  const inactivePill = `${pillBase} text-(--muted) hover:text-(--text) hover:bg-(--bg-subtle)`
 
   return (
     <div className="my-5">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 min-h-8">
+        <div className="relative w-24 shrink-0">
+          {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
+          <input
+            type="text"
+            enterKeyHint="search"
+            placeholder="Search…"
+            value={searchQuery}
+            onChange={e => onSearchChange(e.target.value)}
+            className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-(--text) placeholder-(--muted) focus:outline-none bg-(--bg-subtle)"
+          />
+          {searchQuery && (
+            <button
+              aria-label="Clear search"
+              onClick={() => onSearchChange('')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-(--muted) hover:text-(--text) transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="flex gap-1 overflow-x-auto scrollbar-none pb-0.5 flex-1">
           {categories.map(cat => (
             <button
@@ -112,7 +137,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
           <button
             onClick={onAdd}
             title="Add item"
-            className="text-[--muted] hover:text-[--text] transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
+            className="text-(--muted) hover:text-(--text) transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
           >
             +
           </button>
@@ -125,8 +150,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
           onClick={!editLoading ? closeEditModal : undefined}
         >
           <div
-            className="rounded-lg border border-[--border] p-5 w-full max-w-xs flex flex-col gap-3"
-            style={{ backgroundColor: 'var(--bg)' }}
+            className="rounded-lg border border-(--border) p-5 w-full max-w-xs flex flex-col gap-3 bg-(--bg)"
             onClick={e => e.stopPropagation()}
           >
             <p className="text-sm font-semibold">Edit tags</p>
@@ -137,7 +161,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
                     <button
                       onClick={() => moveTag(i, i - 1)}
                       disabled={i === 0 || editLoading}
-                      className="text-[--muted] hover:text-[--text] disabled:opacity-20 leading-none flex items-center justify-center w-5 h-4 text-xs transition-colors"
+                      className="text-(--muted) hover:text-(--text) disabled:opacity-20 leading-none flex items-center justify-center w-5 h-4 text-xs transition-colors"
                       aria-label="Move up"
                     >
                       ↑
@@ -145,7 +169,7 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
                     <button
                       onClick={() => moveTag(i, i + 1)}
                       disabled={i === editTags.length - 1 || editLoading}
-                      className="text-[--muted] hover:text-[--text] disabled:opacity-20 leading-none flex items-center justify-center w-5 h-4 text-xs transition-colors"
+                      className="text-(--muted) hover:text-(--text) disabled:opacity-20 leading-none flex items-center justify-center w-5 h-4 text-xs transition-colors"
                       aria-label="Move down"
                     >
                       ↓
@@ -162,17 +186,16 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
                     maxLength={40}
                     disabled={editLoading}
                     placeholder="Tag name"
-                    className={`flex-1 px-2 py-1.5 border rounded text-xs bg-[--bg] text-[--text] focus:outline-none transition-colors disabled:opacity-60 ${
+                    className={`flex-1 px-2 py-1.5 border rounded text-xs bg-(--bg) text-(--text) focus:outline-none transition-colors disabled:opacity-60 ${
                       !tag.isNew && tag.value.trim() && tag.value.trim() !== tag.key
-                        ? 'border-[--text]'
-                        : 'border-[--border]'
+                        ? 'border-(--text)'
+                        : 'border-(--border)'
                     }`}
-                    style={{ fontSize: '16px' }}
                   />
                   <button
                     onClick={() => deleteTag(i)}
                     disabled={editLoading}
-                    className="text-[--muted] hover:text-[--danger] disabled:opacity-40 leading-none w-5 h-7 flex items-center justify-center transition-colors shrink-0 text-base"
+                    className="text-(--muted) hover:text-(--danger) disabled:opacity-40 leading-none w-5 h-7 flex items-center justify-center transition-colors shrink-0 text-base"
                     aria-label={`Delete ${tag.value || 'tag'}`}
                   >
                     ×
@@ -182,26 +205,26 @@ export default function CategoryFilter({ categories, active, onChange, onAdd, on
               <button
                 onClick={addTag}
                 disabled={editLoading}
-                className="text-xs text-[--muted] hover:text-[--text] transition-colors text-left py-1 disabled:opacity-40"
+                className="text-xs text-(--muted) hover:text-(--text) transition-colors text-left py-1 disabled:opacity-40"
               >
                 + Add tag
               </button>
             </div>
-            {editError && <p className="text-[--danger] text-xs">{editError}</p>}
+            {editError && <p className="text-(--danger) text-xs">{editError}</p>}
             <div className="flex gap-2 justify-end">
               <button
                 onClick={closeEditModal}
                 disabled={editLoading}
-                className="px-3 py-1 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+                className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={editLoading}
-                className="px-3 py-1 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40 flex items-center gap-1.5"
+                className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40 flex items-center gap-1.5"
               >
-                {editLoading && <div className="w-3 h-3 border border-[--bg]/30 border-t-[--bg] rounded-full animate-spin" />}
+                {editLoading && <div className="w-3 h-3 border border-(--bg)/30 border-t-(--bg) rounded-full animate-spin" />}
                 {editLoading ? 'Saving…' : 'Save'}
               </button>
             </div>

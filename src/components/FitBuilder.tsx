@@ -114,17 +114,16 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
       onClick={!saving ? onClose : undefined}
     >
       <div
-        className="rounded-lg border border-[--border] w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden"
-        style={{ backgroundColor: 'var(--bg)' }}
+        className="rounded-lg border border-(--border) w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden bg-(--bg)"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[--border] flex-none">
-          <h2 className="text-xs font-semibold text-[--text]">{packMode ? 'Pack items' : editingFit ? 'Edit fit' : 'Create fit'}</h2>
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-(--border) flex-none">
+          <h2 className="text-xs font-semibold text-(--text)">{packMode ? 'Pack items' : editingFit ? 'Edit fit' : 'Create fit'}</h2>
           <button
             onClick={onClose}
             disabled={saving}
-            className="text-[--muted] hover:text-[--text] transition-colors text-base leading-none disabled:opacity-40"
+            className="text-(--muted) hover:text-(--text) transition-colors text-base leading-none disabled:opacity-40"
           >
             ×
           </button>
@@ -138,7 +137,7 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
                 <button
                   key={c.slug}
                   onClick={() => setActiveSlug(c.slug)}
-                  className={`px-2.5 py-1 rounded text-xs shrink-0 transition-colors ${activeSlug === c.slug ? 'border border-[--text] text-[--text]' : 'text-[--muted] hover:text-[--text]'}`}
+                  className={`px-2.5 py-1 rounded text-xs shrink-0 transition-colors ${activeSlug === c.slug ? 'border border-(--text) text-(--text)' : 'text-(--muted) hover:text-(--text)'}`}
                 >
                   {c.name ?? c.slug}
                 </button>
@@ -147,9 +146,9 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
           )}
           <div className="overflow-y-auto flex-1 min-h-0 p-3">
             {loadingItems ? (
-              <p className="text-xs text-[--muted] text-center py-8">Loading…</p>
+              <p className="text-xs text-(--muted) text-center py-8">Loading…</p>
             ) : gridItems.length === 0 ? (
-              <p className="text-xs text-[--muted] text-center py-8">{poolMode ? 'Nothing packed yet.' : 'No items in this closet.'}</p>
+              <p className="text-xs text-(--muted) text-center py-8">{poolMode ? 'Nothing packed yet.' : 'No items in this closet.'}</p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 {gridItems.map(item => {
@@ -157,16 +156,16 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
                   const sel = isSelected(item)
                   return (
                     <button key={`${item.slug}-${item.itemId}`} onClick={() => toggle(item)} className="flex flex-col gap-0.5">
-                      <div className={`relative aspect-square w-full rounded overflow-hidden border-2 transition-colors ${sel ? 'border-[--text]' : 'border-transparent'}`}>
+                      <div className={`relative aspect-square w-full rounded overflow-hidden border-2 transition-colors ${sel ? 'border-(--text)' : 'border-transparent'}`}>
                         <img src={img} alt={item.name} className="w-full h-full object-cover" />
                         {sel && (
                           <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                            <span className="bg-[--text] text-[--bg] rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">✓</span>
+                            <span className="bg-(--text) text-(--bg) rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">✓</span>
                           </div>
                         )}
                       </div>
                       {/* Name below the image so items can be referenced by name in the styling notes. */}
-                      <span className="px-0.5 text-[10px] text-center truncate text-[--muted]">{item.name}</span>
+                      <span className="px-0.5 text-[10px] text-center truncate text-(--muted)">{item.name}</span>
                     </button>
                   )
                 })}
@@ -177,53 +176,52 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
 
         {/* Selected tray */}
         {selected.length > 0 && (
-          <div className="px-4 py-2 border-t border-[--border] flex gap-1.5 overflow-x-auto scrollbar-none flex-none">
+          <div className="px-4 py-2 border-t border-(--border) flex gap-1.5 overflow-x-auto scrollbar-none flex-none">
             {selected.map(s => (
               <div key={`${s.slug}-${s.itemId}`} className="shrink-0 w-12">
                 <div className="relative">
-                  <img src={s.imageUrl} alt={s.name} className="w-12 h-12 rounded object-cover border border-[--border]" />
+                  <img src={s.imageUrl} alt={s.name} className="w-12 h-12 rounded object-cover border border-(--border)" />
                   <button
                     onClick={() => setSelected(prev => prev.filter(p => !(p.itemId === s.itemId && p.slug === s.slug)))}
-                    className="absolute -top-1 -right-1 bg-[--text] text-[--bg] rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px] leading-none"
+                    className="absolute -top-1 -right-1 bg-(--text) text-(--bg) rounded-full w-3.5 h-3.5 flex items-center justify-center text-[9px] leading-none"
                   >
                     ×
                   </button>
                 </div>
                 {/* Name caption — what you reference in the styling notes below. */}
-                <span className="block text-[9px] text-[--muted] truncate text-center mt-0.5">{s.name}</span>
+                <span className="block text-[9px] text-(--muted) truncate text-center mt-0.5">{s.name}</span>
               </div>
             ))}
           </div>
         )}
 
-        {error && <p className="text-[--danger] text-xs px-4 pb-2 flex-none">{error}</p>}
+        {error && <p className="text-(--danger) text-xs px-4 pb-2 flex-none">{error}</p>}
 
         {packMode ? (
-          <div className="px-4 py-2.5 border-t border-[--border] flex justify-end gap-2 flex-none">
+          <div className="px-4 py-2.5 border-t border-(--border) flex justify-end gap-2 flex-none">
             <button
               onClick={onClose}
               disabled={saving}
-              className="px-3 py-1.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+              className="px-3 py-1.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
             <button
               onClick={handlePack}
               disabled={saving}
-              className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40"
+              className="px-3 py-1.5 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40"
             >
               {saving ? 'Saving…' : `Save${selected.length > 0 ? ` (${selected.length})` : ''}`}
             </button>
           </div>
         ) : (
-        <div className="px-4 py-2.5 border-t border-[--border] flex flex-col gap-2.5 flex-none">
+        <div className="px-4 py-2.5 border-t border-(--border) flex flex-col gap-2.5 flex-none">
           <input
             value={fitName}
             onChange={e => setFitName(e.target.value)}
             placeholder="title"
             maxLength={60}
-            className="px-2.5 py-1 border border-[--border] rounded bg-[--bg] text-[--text] focus:outline-none w-full"
-            style={{ fontSize: '16px' }}
+            className="px-2.5 py-1 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
             disabled={saving}
           />
           <textarea
@@ -232,8 +230,7 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
             placeholder="additional context"
             maxLength={300}
             rows={2}
-            className="px-2.5 py-1.5 border border-[--border] rounded bg-[--bg] text-[--text] focus:outline-none w-full resize-none"
-            style={{ fontSize: '16px' }}
+            className="px-2.5 py-1.5 border border-(--border) rounded bg-(--bg) text-(--text) focus:outline-none w-full resize-none text-xs"
             disabled={saving}
           />
           <div className="flex items-center justify-between gap-2">
@@ -243,9 +240,9 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
                 onClick={() => setStub(s => !s)}
                 disabled={saving}
                 title="Dev only — skip the AI call and use a placeholder image"
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors disabled:opacity-40 ${stub ? 'text-[--text]' : 'text-[--muted] hover:text-[--text]'}`}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors disabled:opacity-40 ${stub ? 'text-(--text)' : 'text-(--muted) hover:text-(--text)'}`}
               >
-                <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center text-[9px] leading-none ${stub ? 'bg-[--text] text-[--bg] border-[--text]' : 'border-[--border]'}`}>
+                <span className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center text-[9px] leading-none ${stub ? 'bg-(--text) text-(--bg) border-(--text)' : 'border-(--border)'}`}>
                   {stub ? '✓' : ''}
                 </span>
                 Placeholder
@@ -255,7 +252,7 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="px-3 py-1.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+                className="px-3 py-1.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -263,7 +260,7 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
                 <button
                   onClick={handleSaveEdit}
                   disabled={selected.length === 0 || saving}
-                  className="px-3 py-1.5 border border-[--border] rounded text-xs hover:bg-[--bg-subtle] transition-colors disabled:opacity-40"
+                  className="px-3 py-1.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
                 >
                   {saving ? 'Saving…' : 'Save'}
                 </button>
@@ -271,7 +268,7 @@ export default function FitBuilder({ closets, token, editingFit, pool, suitcaseI
               <button
                 onClick={handleGenerate}
                 disabled={selected.length === 0 || saving}
-                className="px-3 py-1.5 bg-[--text] text-[--bg] rounded text-xs font-medium disabled:opacity-40"
+                className="px-3 py-1.5 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40"
               >
                 {editingFit ? 'Regenerate' : `Generate${selected.length > 0 ? ` (${selected.length})` : ''}`}
               </button>
