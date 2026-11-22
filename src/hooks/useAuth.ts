@@ -8,6 +8,9 @@ const IS_DEV = import.meta.env.DEV
 const DEV_TOKEN = 'dev-bypass'
 const DEV_USER = { token: { access_token: DEV_TOKEN } } as unknown as User
 const ACTIVE_WS_KEY = 'toop.activeWorkspace'
+// dev has no Identity, so logout is a local flag that survives reloads
+const DEV_LOGGED_OUT_KEY = 'toop.devLoggedOut'
+const devLoggedIn = () => localStorage.getItem(DEV_LOGGED_OUT_KEY) !== '1'
 
 if (!IS_DEV) {
   netlifyIdentity.init({ APIUrl: 'https://closet.tooper.io/.netlify/identity' })
@@ -17,12 +20,12 @@ export { IS_DEV, DEV_TOKEN }
 
 // For FitGeneration, which polls outside the tree and shouldn't stand up a second useAuth.
 export const currentToken = (): string =>
-  IS_DEV ? DEV_TOKEN : (netlifyIdentity.currentUser()?.token?.access_token ?? '')
+  IS_DEV ? (devLoggedIn() ? DEV_TOKEN : '') : (netlifyIdentity.currentUser()?.token?.access_token ?? '')
 
 export const currentWorkspace = (): string | undefined => localStorage.getItem(ACTIVE_WS_KEY) ?? undefined
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(IS_DEV ? DEV_USER : netlifyIdentity.currentUser())
+  const [user, setUser] = useState<User | null>(IS_DEV ? (devLoggedIn() ? DEV_USER : null) : netlifyIdentity.currentUser())
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   // Which workspace's closets the nav shows + where new resources land. Persisted so a switch survives reloads;
   const [activeEmail, setActiveEmail] = useState<string | null>(() => localStorage.getItem(ACTIVE_WS_KEY))
@@ -49,12 +52,19 @@ export function useAuth() {
       })
     }).catch(console.error)
 
+  const clearSession = () => {
+    setUser(null)
+    setWorkspaces([])
+    setActiveEmail(null)
+    localStorage.removeItem(ACTIVE_WS_KEY)
+  }
+
   useEffect(() => {
     fetchClosets().then(setAllClosets).catch(() => {}).finally(() => setClosetsLoaded(true))
   }, [])
 
   useEffect(() => {
-    if (IS_DEV) { loadProfile(DEV_TOKEN); return }
+    if (IS_DEV) { if (devLoggedIn()) loadProfile(DEV_TOKEN); return }
     const currentUser = netlifyIdentity.currentUser()
     const t = currentUser?.token?.access_token ?? ''
     if (currentUser && t) loadProfile(t)
@@ -68,22 +78,20 @@ export function useAuth() {
       const t = u.token?.access_token ?? ''
       if (t) loadProfile(t)
     }
-    const handleLogout = () => {
-      setUser(null)
-      setWorkspaces([])
-      setActiveEmail(null)
-      localStorage.removeItem(ACTIVE_WS_KEY)
-    }
     netlifyIdentity.on('login', handleLogin)
-    netlifyIdentity.on('logout', handleLogout)
+    netlifyIdentity.on('logout', clearSession)
     return () => {
       netlifyIdentity.off('login', handleLogin)
-      netlifyIdentity.off('logout', handleLogout)
+      netlifyIdentity.off('logout', clearSession)
     }
   }, [])
 
-  const login = IS_DEV ? () => {} : () => netlifyIdentity.open()
-  const logout = IS_DEV ? () => {} : () => netlifyIdentity.logout()
+  const login = IS_DEV
+    ? () => { localStorage.removeItem(DEV_LOGGED_OUT_KEY); setUser(DEV_USER); loadProfile(DEV_TOKEN) }
+    : () => netlifyIdentity.open()
+  const logout = IS_DEV
+    ? () => { localStorage.setItem(DEV_LOGGED_OUT_KEY, '1'); clearSession() }
+    : () => netlifyIdentity.logout()
 
   // Resolve the active workspace object (fallback to own / first loaded).
   const active =
