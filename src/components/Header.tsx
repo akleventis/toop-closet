@@ -25,7 +25,7 @@ type Props = {
 
 export default function Header({ slug = '', closets, user, onLogin, onLogout, onCreateCloset, onRenameCloset, onDeleteCloset, workspaces = [], activeWorkspace, onSwitchWorkspace, backTo }: Props) {
   const location = useLocation()
-  // Fits + suitcases pages share the "← Back to …" treatment (no closet nav).
+  // Fits + suitcases pages share the "← Back" treatment (no closet nav).
   const onSubPage = location.pathname === '/fits' || location.pathname.startsWith('/suitcases')
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -55,14 +55,14 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
   const handleClose = () => { setCreating(false); setNewName(''); setCreateError(null) }
 
   const closetMenuItems: MenuItem[] = [
+    ...(onCreateCloset ? [{ label: 'Add closet', onClick: () => setCreating(true) }] : []),
     ...(onRenameCloset ? [{ label: 'Rename closet', onClick: onRenameCloset }] : []),
     ...(onDeleteCloset ? [{ label: 'Delete closet', danger: true, onClick: onDeleteCloset }] : []),
   ]
 
-  const inSuitcase = location.pathname.startsWith('/suitcases/')
-  const back = inSuitcase
-    ? { to: '/suitcases', label: 'Back to suitcases' }
-    : { to: backTo ?? (closets[0] ? `/${closets[0].slug}` : '/'), label: 'Back to closets' }
+  const backHref = location.pathname.startsWith('/suitcases/')
+    ? '/suitcases'
+    : backTo ?? (closets[0] ? `/${closets[0].slug}` : '/')
 
   return (
     <>
@@ -71,10 +71,10 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
           <div className="flex items-center gap-1 min-w-0 flex-1">
             {onSubPage ? (
               <Link
-                to={back.to}
+                to={backHref}
                 className="flex items-center gap-1 text-xs tracking-wide text-[--muted] hover:text-[--text] transition-colors shrink-0"
               >
-                <span aria-hidden="true">←</span> {back.label}
+                <span aria-hidden="true">←</span> Back
               </Link>
             ) : (
               <>
@@ -98,16 +98,6 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
                 </nav>
 
                 <div className="flex items-center shrink-0">
-                  {onCreateCloset && (
-                    <button
-                      onClick={() => setCreating(true)}
-                      className="text-[--muted] hover:text-[--text] transition-colors leading-none w-8 h-8 flex items-center justify-center text-base shrink-0"
-                      title="New closet"
-                    >
-                      +
-                    </button>
-                  )}
-
                   {closetMenuItems.length > 0 && <Menu items={closetMenuItems} align="left" />}
 
                   <span className="w-px h-4 bg-[--border] shrink-0 mx-2" aria-hidden="true" />
@@ -153,7 +143,7 @@ export default function Header({ slug = '', closets, user, onLogin, onLogout, on
               onChange={e => setNewName(e.target.value)}
               placeholder="Closet name"
               maxLength={60}
-              className="px-3 py-2 border border-[--border] rounded text-base sm:text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
+              className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
               disabled={createLoading}
             />
             {createError && <p className="text-[--danger] text-sm">{createError}</p>}

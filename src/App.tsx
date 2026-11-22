@@ -231,13 +231,11 @@ export default function App() {
         activeWorkspace={activeWorkspace}
         onSwitchWorkspace={handleSwitchWorkspace}
       />
-      <main className="max-w-4xl mx-auto px-4 pb-12">
+      <main className="max-w-4xl mx-auto px-4 pb-16">
         <CategoryFilter
           categories={allCategories}
           active={category}
           onChange={setCategory}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
           onAdd={canEdit ? () => setModal({ mode: 'add', defaultCategory: category === ALL ? undefined : category }) : undefined}
           onSaveTagEdits={canEdit ? handleSaveTagEdits : undefined}
         />
@@ -270,6 +268,37 @@ export default function App() {
           </div>
         )}
       </main>
+      <footer
+        className="fixed bottom-0 inset-x-0 z-40"
+        style={{ backgroundColor: 'var(--bg)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="max-w-4xl mx-auto px-4 py-1.5">
+          <div className="relative w-36">
+            {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
+            <input
+              type="text"
+              enterKeyHint="search"
+              placeholder="Search…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-[--text] placeholder-[--muted] focus:outline-none"
+              style={{ backgroundColor: 'var(--bg-subtle)' }}
+            />
+            {searchQuery && (
+              <button
+                aria-label="Clear search"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-[--muted] hover:text-[--text] transition-colors"
+                style={{ touchAction: 'manipulation' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </footer>
       {modal && canEdit && (
         <ItemModal
           modal={modal}
@@ -313,7 +342,6 @@ export default function App() {
               onChange={e => setRenameValue(e.target.value)}
               maxLength={60}
               className="px-3 py-2 border border-[--border] rounded text-sm bg-[--bg] text-[--text] focus:outline-none w-full"
-              style={{ fontSize: '16px' }}
               disabled={renameLoading}
             />
             {renameClosetError && <p className="text-[--danger] text-xs">{renameClosetError}</p>}

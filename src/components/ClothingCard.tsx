@@ -115,11 +115,26 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
       </div>
 
       <div className="p-3 flex flex-col gap-1.5 flex-1">
-        <div className="flex items-start justify-between gap-1">
+        <div className="flex items-center justify-between gap-1">
           <div className="font-medium text-xs truncate">{item.name}</div>
           {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
         </div>
-        <span className="self-start text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+        <div className="flex items-center justify-between gap-1">
+          <span className="text-[10px] px-1.5 py-0.5 rounded border border-[--border] text-[--muted]">{item.category}</span>
+          {onShare && (
+            // -my-2 keeps the 32px tap target without making the tag row taller
+            <button
+              aria-label="Share"
+              onClick={e => { e.stopPropagation(); onShare() }}
+              className="w-8 h-8 -my-2 flex items-center justify-center rounded text-[--muted] hover:text-[--text] transition-colors"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+              </svg>
+            </button>
+          )}
+        </div>
         {showTransfer && !target && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
             {otherClosets.map(c => (
@@ -153,7 +168,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                 onChange={e => setTargetCat(e.target.value)}
                 disabled={transferring}
                 className="flex-1 min-w-0 px-1.5 py-0.5 border border-[--border] rounded text-xs text-[--text] disabled:opacity-40"
-                style={{ backgroundColor: 'var(--bg)', fontSize: '16px' }}
+                style={{ backgroundColor: 'var(--bg)' }}
               >
                 {target.categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
