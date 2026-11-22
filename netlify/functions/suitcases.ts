@@ -44,7 +44,7 @@ export const handler = async (event: HandlerEvent, context: NetlifyContext): Pro
     return { statusCode: 200, headers: JSON_HEADERS, body: JSON.stringify(result.map(toPublicSuitcase)) }
   }
 
-  // Any logged-in user has full access to all suitcases.
+  // writes need login; each method then gates on workspace membership (canActOn/targetWorkspace)
   const netlifyUser = requireAuth(context)
   if (!netlifyUser) {
     return unauthorized()
