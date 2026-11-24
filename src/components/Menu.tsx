@@ -9,35 +9,40 @@ export type MenuItem = {
 
 export default function Menu({ items, align = 'right' }: { items: MenuItem[]; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false)
-  const [hovered, setHovered] = useState<string | null>(null)
   const ref = useOutsideClick<HTMLDivElement>(open, () => setOpen(false))
+  const actions = items.filter(i => !i.danger)
+  const destructive = items.filter(i => i.danger)
+
+  const row = (item: MenuItem) => (
+    <button
+      key={item.label}
+      role="menuitem"
+      onClick={() => { setOpen(false); item.onClick() }}
+      className={`glass-panel-item ${item.danger ? 'text-(--danger) hover:brightness-125' : 'text-(--muted) hover:text-(--text)'}`}
+    >
+      {item.label}
+    </button>
+  )
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-5 h-8 flex items-center justify-center rounded text-(--muted) hover:text-(--text) transition-colors text-base leading-none"
+        aria-label="More"
+        aria-expanded={open}
+        className="w-5 h-8 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors text-base leading-none"
         style={{ touchAction: 'manipulation' }}
       >
         ⋮
       </button>
       {open && (
-        <div className={`absolute top-full mt-1 ${align === 'left' ? 'left-0' : 'right-0'} border border-(--border) rounded shadow-md z-50 w-max py-1 bg-(--bg)`}>
-          {items.map(item => (
-            <button
-              key={item.label}
-              onClick={() => { setOpen(false); item.onClick() }}
-              onMouseEnter={() => setHovered(item.label)}
-              onMouseLeave={() => setHovered(null)}
-              onTouchStart={() => setHovered(item.label)}
-              onTouchEnd={() => setHovered(null)}
-              onTouchCancel={() => setHovered(null)}
-              className={`block w-full text-left px-3 py-1.5 text-xs whitespace-nowrap transition-colors ${item.danger ? 'text-(--danger)' : 'text-(--text)'}`}
-              style={{ backgroundColor: hovered === item.label ? 'var(--bg-subtle)' : undefined }}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div
+          role="menu"
+          className={`glass-panel pop-in absolute top-full mt-1 ${align === 'left' ? 'left-0 origin-top-left' : 'right-0 origin-top-right'}`}
+        >
+          {actions.map(row)}
+          {actions.length > 0 && destructive.length > 0 && <div className="h-px mx-2 my-1 bg-white/10" />}
+          {destructive.map(row)}
         </div>
       )}
     </div>

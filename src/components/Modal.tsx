@@ -4,11 +4,11 @@ import type { ReactNode } from 'react'
 export default function Modal({ onClose, locked = false, children }: { onClose: () => void; locked?: boolean; children: ReactNode }) {
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4"
+      className="scrim z-[200]"
       onClick={locked ? undefined : onClose}
     >
       <div
-        className="rounded-lg border border-(--border) p-6 w-full max-w-sm flex flex-col gap-4 bg-(--bg)"
+        className="sheet p-5 max-w-sm flex flex-col gap-4"
         onClick={e => e.stopPropagation()}
       >
         {children}

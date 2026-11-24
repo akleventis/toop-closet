@@ -6,8 +6,9 @@ import { removeBackground, bgRemovalConfigured } from '../lib/bgRemoval.js'
 import { createFit, patchFit, readFit } from '../lib/fits.js'
 import type { StoredFitItem } from '../lib/fits.js'
 import { writeJob, JOB_ID_RE } from '../lib/fitJobs.js'
+import { readJson } from '../lib/s3.js'
 import type { FitJob } from '../lib/fitJobs.js'
-import { JSON_HEADERS, errorRes, unauthorized } from '../lib/types.js'
+import { JSON_HEADERS, SLUG_RE, errorRes, unauthorized } from '../lib/types.js'
 import type { HandlerEvent, HandlerResponse } from '../lib/types.js'
 
 // The `-background.ts` filename makes Netlify 202 instantly then run to completion (15-min cap).
@@ -19,6 +20,17 @@ const size = '1024x1024' as const
 const CONTEXT_MAX = 500 // defensive server-side cap (textarea caps at 300)
 
 type ImageOutput = { result: string }
+
+// Item notes ("runs small", "cropped") steer the AI; read fresh from inventory since snapshots don't carry them.
+// Best-effort: an unreadable closet just means no notes for its items.
+async function itemNotes(items: StoredFitItem[]): Promise<Map<string, string>> {
+  const slugs = [...new Set(items.map(it => it.slug))].filter(slug => SLUG_RE.test(slug))
+  const closets = await Promise.all(slugs.map(slug =>
+    readJson<{ id: string; notes?: string }[]>(`inventory/${slug}.json`).catch(() => null)))
+  const notes = new Map<string, string>()
+  closets.forEach((inv, i) => inv?.forEach(it => { if (it.notes) notes.set(`${slugs[i]}/${it.id}`, it.notes) }))
+  return notes
+}
 
 const ok: HandlerResponse = { statusCode: 200, headers: JSON_HEADERS, body: '' }
 
@@ -98,11 +110,15 @@ export const handler = async (event: HandlerEvent): Promise<HandlerResponse> => 
       const image = (url: string) => ({ type: 'input_image' as const, image_url: url, detail: 'auto' as const })
 
       // Label each image so the model can map a name (e.g. "basketcase") to the right item.
+      const notes = await itemNotes(items)
       const ctx = (safeContext ?? '').trim()
       const instructions = ctx ? `${prompt}\n\nAdditional styling direction: ${ctx}` : prompt
       const content = [
         label('Body type and pose reference:'), image(baseSubjectUrl),
-        ...items.flatMap((it, i) => [label(`Item ${i + 1} — "${it.name}":`), image(it.imageUrl)]),
+        ...items.flatMap((it, i) => {
+          const note = notes.get(`${it.slug}/${it.itemId}`)
+          return [label(`Item ${i + 1} — "${it.name}"${note ? ` (notes: ${note})` : ''}:`), image(it.imageUrl)]
+        }),
         label(instructions),
       ]
 

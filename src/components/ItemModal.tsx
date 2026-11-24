@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { uploadImage, resizeImage } from '../api'
 import type { ModalState, SavePayload, ClothingItem } from '../types'
 import { getImages } from '../types'
+import Chevron from './Chevron'
 
 type ImageSlot =
   | { kind: 'url'; url: string }
@@ -15,7 +16,6 @@ type FormState = {
   notes: string
 }
 
-const field = 'w-full px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none focus:ring-1 focus:ring-(--text)'
 const label = 'flex flex-col gap-1 text-xs font-medium text-(--muted)'
 
 type Props = {
@@ -143,11 +143,11 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/65 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+        className="scrim z-[100]"
         onClick={busy ? undefined : onClose}
       >
         <div
-          className="bg-(--bg) border border-(--border) rounded-lg p-5 w-full max-w-[420px] max-h-[90svh] overflow-y-auto"
+          className="sheet p-5 max-w-[420px] max-h-[90svh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
           <h2 className="m-0 mb-3 text-sm font-semibold">
@@ -156,11 +156,11 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
           <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
             <label className={label}>
               Name
-              <input type="text" required value={form.name} onChange={set('name')} className={field} />
+              <input type="text" required value={form.name} onChange={set('name')} className="field" />
             </label>
             <label className={label}>
               Tag
-              <select value={form.category} onChange={set('category')} className={field}>
+              <select value={form.category} onChange={set('category')} className="field">
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
@@ -174,7 +174,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                       <img
                         src={imgSrc(slot)}
                         alt=""
-                        className="w-16 h-16 object-cover rounded border border-(--border) cursor-zoom-in"
+                        className="w-16 h-16 object-cover card-fill cursor-zoom-in"
                         onClick={() => setLightboxIndex(i)}
                       />
                       <button
@@ -182,7 +182,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                         onClick={() => removeImage(i)}
                         className="absolute -top-2 -right-2 w-8 h-8 flex items-center justify-center"
                       >
-                        <span className="w-4 h-4 bg-(--text) text-(--bg) rounded-full text-[10px] flex items-center justify-center leading-none">×</span>
+                        <span className="w-4 h-4 bg-(--bg-subtle) text-(--muted) hover:text-(--text) transition-colors rounded-full text-[10px] flex items-center justify-center leading-none">×</span>
                       </button>
                       {images.length > 1 && (
                         <div className="flex gap-0.5 mt-1">
@@ -190,13 +190,13 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                             type="button"
                             disabled={i === 0}
                             onClick={() => shiftLeft(i)}
-                            className="flex-1 h-8 border border-(--border) rounded text-xs disabled:opacity-25 hover:bg-(--bg-subtle) transition-colors"
+                            className="btn flex-1 h-8 py-0 px-0"
                           >←</button>
                           <button
                             type="button"
                             disabled={i === images.length - 1}
                             onClick={() => shiftRight(i)}
-                            className="flex-1 h-8 border border-(--border) rounded text-xs disabled:opacity-25 hover:bg-(--bg-subtle) transition-colors"
+                            className="btn flex-1 h-8 py-0 px-0"
                           >→</button>
                         </div>
                       )}
@@ -208,7 +208,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="self-start px-2.5 py-1 border border-dashed border-(--border) rounded text-xs text-(--muted) hover:bg-(--bg-subtle) transition-colors"
+                  className="btn self-start"
                 >
                   + Add photo{images.length === 0 ? '' : ' (' + (4 - images.length) + ' left)'}
                 </button>
@@ -232,7 +232,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
                   value={form.notes}
                   onChange={set('notes')}
                   placeholder="optional"
-                  className={field}
+                  className="field"
                 />
                 {form.notes.length > 0 && (
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-(--muted)">
@@ -255,10 +255,10 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
             </label>
             {error && <p className="text-(--danger) text-xs">{error}</p>}
             <div className="flex justify-end gap-2 mt-1">
-              <button type="button" disabled={busy} onClick={onClose} className="px-3 py-1 border border-(--border) rounded text-xs font-medium hover:bg-(--bg-subtle) transition-colors disabled:opacity-45 disabled:cursor-not-allowed">
+              <button type="button" disabled={busy} onClick={onClose} className="btn">
                 Cancel
               </button>
-              <button type="submit" disabled={busy} className="px-3 py-1 border border-(--border) rounded bg-(--text) text-(--bg) text-xs font-medium hover:opacity-80 transition-opacity disabled:opacity-45 disabled:cursor-not-allowed">
+              <button type="submit" disabled={busy} className="btn-primary">
                 {busy ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -283,7 +283,7 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
           <img
             src={imgSrc(images[lightboxIndex])}
             alt=""
-            className="max-w-full object-contain rounded"
+            className="max-w-full object-contain"
             style={{ maxHeight: multi ? 'calc(100vh - 7rem)' : 'calc(100vh - 4rem)' }}
           />
           {multi && (
@@ -302,15 +302,15 @@ export default function ItemModal({ modal, onSave, onClose, token, slug, categor
           {multi && (
             <>
               <button
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-                style={{ fontSize: 28 }}
+                aria-label="Previous photo"
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
                 onClick={e => { e.stopPropagation(); setLightboxIndex(i => i !== null ? (i - 1 + images.length) % images.length : null) }}
-              >‹</button>
+              ><Chevron dir="left" size={22} /></button>
               <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-                style={{ fontSize: 28 }}
+                aria-label="Next photo"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
                 onClick={e => { e.stopPropagation(); setLightboxIndex(i => i !== null ? (i + 1) % images.length : null) }}
-              >›</button>
+              ><Chevron dir="right" size={22} /></button>
             </>
           )}
         </div>

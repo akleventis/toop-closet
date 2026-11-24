@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { useFitGeneration } from '../contexts/fitGenerationContext'
 import Header from '../components/Header'
+import AddButton from '../components/AddButton'
 import FitBuilder from '../components/FitBuilder'
 import FitGrid from '../components/FitGrid'
 import Lightbox from '../components/Lightbox'
@@ -82,7 +83,7 @@ export default function SuitcaseDetailPage() {
 
   return (
     <div className="min-h-screen">
-      <Header slug="" closets={allClosets} user={user} onLogin={login} onLogout={logout} backTo={backTo} />
+      <Header slug="" user={user} onLogin={login} onLogout={logout} backTo={backTo} />
 
       <main className="max-w-4xl mx-auto px-4 pb-12">
         {loading ? (
@@ -93,61 +94,51 @@ export default function SuitcaseDetailPage() {
           </p>
         ) : (
           <>
-            <div className="flex items-center justify-between my-5 gap-3">
-              <h1 className="text-sm font-semibold text-(--text) truncate">{suitcase.name ?? 'Untitled suitcase'}</h1>
-              <Link to="/suitcases" className="text-xs text-(--muted) hover:text-(--text) transition-colors shrink-0">All suitcases</Link>
+            <div className="flex items-center gap-1 min-h-8 mb-3">
+              <h1 className="text-xs font-medium text-(--text) truncate">{suitcase.name ?? 'Untitled suitcase'}</h1>
             </div>
 
             {/* Packed items */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between min-h-8 mb-2">
               <h2 className="text-xs font-medium text-(--muted)">Packed ({suitcase.items.length})</h2>
-              {isOwner && (
-                <button
-                  onClick={() => setPacking(true)}
-                  className="px-3 py-1.5 bg-(--text) text-(--bg) rounded text-xs font-medium"
-                >
-                  Pack items
-                </button>
-              )}
+              {isOwner && <AddButton label="Pack items" onClick={() => setPacking(true)} />}
             </div>
             {suitcase.items.length === 0 ? (
-              <p className="text-(--muted) text-xs">Nothing packed yet — tap "Pack items" to add clothes from your closets.</p>
+              <p className="text-(--muted) text-xs">Nothing packed yet — tap + to add clothes from your closets.</p>
             ) : (
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-x-2 gap-y-4">
                 {suitcase.items.map(item => (
                   <div key={`${item.slug}-${item.itemId}`} className="flex flex-col gap-0.5">
                     <div className="relative aspect-square">
-                      <button onClick={() => setLightboxItem(item)} className="block w-full h-full rounded overflow-hidden border border-(--border) cursor-zoom-in">
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      <button onClick={() => setLightboxItem(item)} className="block w-full h-full overflow-hidden cursor-zoom-in card-fill">
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-1" />
                       </button>
                       {isOwner && (
                         <button
                           onClick={() => handleUnpack(item)}
-                          className="absolute -top-1 -right-1 bg-(--text) text-(--bg) rounded-full w-4 h-4 flex items-center justify-center text-[10px] leading-none"
+                          className="absolute -top-1 -right-1 bg-(--bg-subtle) text-(--muted) hover:text-(--text) transition-colors rounded-full w-4 h-4 flex items-center justify-center text-[10px] leading-none"
                           title="Remove from suitcase"
                         >
                           ×
                         </button>
                       )}
                     </div>
-                    <span className="text-[9px] text-(--muted) truncate text-center">{item.name}</span>
+                    <span className="text-xs text-(--muted) truncate">{item.name}</span>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Fits */}
-            <div className="flex items-center justify-between mt-8 mb-2">
+            <div className="flex items-center justify-between min-h-8 mt-6 mb-2">
               <h2 className="text-xs font-medium text-(--muted)">Fits</h2>
               {isOwner && (
-                <button
+                <AddButton
+                  label="Generate fit"
                   onClick={() => setBuilding(true)}
                   disabled={suitcase.items.length === 0}
-                  className="px-3 py-1.5 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40"
                   title={suitcase.items.length === 0 ? 'Pack some items first' : undefined}
-                >
-                  + Generate fit
-                </button>
+                />
               )}
             </div>
 

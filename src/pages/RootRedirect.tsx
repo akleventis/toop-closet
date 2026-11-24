@@ -12,7 +12,7 @@ export default function RootRedirect() {
   }, [backTo, navigate])
 
   if (closetsLoaded && backTo === '/') {
-    return <p style={{ padding: '2rem', color: 'var(--muted)', fontSize: '0.875rem' }}>No closets found.</p>
+    return <p className="text-(--muted) text-sm text-center mt-16">No closets found.</p>
   }
   return null
 }

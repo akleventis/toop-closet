@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import Menu from './Menu'
+import SearchInput from './SearchInput'
+import AddButton from './AddButton'
 
 type EditTag = { key: string; value: string; isNew: boolean }
 
@@ -88,38 +90,16 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
     }
   }
 
-  const pillBase = 'px-2 py-0.5 rounded text-xs transition-colors shrink-0'
+  const pillBase = 'px-2 py-0.5 text-xs transition-colors shrink-0'
   const activePill = `${pillBase} text-(--text)`
-  const inactivePill = `${pillBase} text-(--muted) hover:text-(--text) hover:bg-(--bg-subtle)`
+  const inactivePill = `${pillBase} text-(--muted) hover:text-(--text)`
 
   return (
-    <div className="my-5">
+    <div className="mb-3">
       <div className="flex items-center gap-1 min-h-8">
         {/* h-8 fits the 32px clear button, so the scroller never scrolls vertically */}
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-none h-8 flex-1">
-          <div className="relative w-24 shrink-0">
-            {/* type="text": "search" adds a native clear button on WebKit that would double ours */}
-            <input
-              type="text"
-              enterKeyHint="search"
-              placeholder="Search…"
-              value={searchQuery}
-              onChange={e => onSearchChange(e.target.value)}
-              className="block w-full pl-2 pr-6 py-0.5 rounded text-xs text-(--text) placeholder-(--muted) focus:outline-none bg-(--bg-subtle)"
-            />
-            {searchQuery && (
-              <button
-                aria-label="Clear search"
-                onClick={() => onSearchChange('')}
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-end pr-1.5 text-(--muted) hover:text-(--text) transition-colors"
-                style={{ touchAction: 'manipulation' }}
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <SearchInput value={searchQuery} onChange={onSearchChange} />
           {categories.map(cat => (
             <button
               key={cat}
@@ -135,23 +115,17 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
         {onSaveTagEdits && <Menu items={[{ label: 'Edit tags', onClick: openEditModal }]} />}
 
         {onAdd && (
-          <button
-            onClick={onAdd}
-            title="Add item"
-            className="text-(--muted) hover:text-(--text) transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
-          >
-            +
-          </button>
+          <AddButton label="Add item" onClick={onAdd} />
         )}
       </div>
 
       {showEditModal && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50"
+          className="scrim z-[200]"
           onClick={!editLoading ? closeEditModal : undefined}
         >
           <div
-            className="rounded-lg border border-(--border) p-5 w-full max-w-xs flex flex-col gap-3 bg-(--bg)"
+            className="sheet p-5 max-w-xs flex flex-col gap-3"
             onClick={e => e.stopPropagation()}
           >
             <p className="text-sm font-semibold">Edit tags</p>
@@ -187,11 +161,8 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
                     maxLength={40}
                     disabled={editLoading}
                     placeholder="Tag name"
-                    className={`flex-1 px-2 py-1.5 border rounded text-xs bg-(--bg) text-(--text) focus:outline-none transition-colors disabled:opacity-60 ${
-                      !tag.isNew && tag.value.trim() && tag.value.trim() !== tag.key
-                        ? 'border-(--text)'
-                        : 'border-(--border)'
-                    }`}
+                    className="field flex-1 transition-colors"
+                    style={{ borderColor: !tag.isNew && tag.value.trim() && tag.value.trim() !== tag.key ? 'var(--text)' : undefined }}
                   />
                   <button
                     onClick={() => deleteTag(i)}
@@ -216,14 +187,14 @@ export default function CategoryFilter({ categories, active, onChange, searchQue
               <button
                 onClick={closeEditModal}
                 disabled={editLoading}
-                className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
+                className="btn"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={editLoading}
-                className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40 flex items-center gap-1.5"
+                className="btn-primary flex items-center gap-1.5"
               >
                 {editLoading && <div className="w-3 h-3 border border-(--bg)/30 border-t-(--bg) rounded-full animate-spin" />}
                 {editLoading ? 'Saving…' : 'Save'}

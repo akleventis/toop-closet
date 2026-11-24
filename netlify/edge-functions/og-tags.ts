@@ -3,7 +3,7 @@
 
 type Context = { next(): Promise<Response> }
 type FitItem = { itemId: string; slug: string; name: string; imageUrl: string }
-type Item = { id: string; name: string; category: string; imageUrl: string; imageUrls?: string[]; notes?: string }
+type Item = { id: string; name: string; category: string; imageUrl: string; imageUrls?: string[] }
 type Fit = { id: string; name?: string; imageUrl: string; items: FitItem[] }
 type Suitcase = { id: string; name?: string }
 type Preview = { title: string; description?: string; image?: string; large: boolean }
@@ -61,7 +61,7 @@ async function preview(url: URL): Promise<Preview | null> {
     const item = items?.find(i => i.id.startsWith(itemId))
     if (!item) return null
     const image = (item.imageUrls ?? [item.imageUrl])[0]
-    const description = [config?.name || first, item.category, item.notes].filter(Boolean).join(' · ')
+    const description = [config?.name || first, item.category].filter(Boolean).join(' · ')
     return { title: item.name, description, image, large: !!image }
   }
 

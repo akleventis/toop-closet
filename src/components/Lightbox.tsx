@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
+import Chevron from './Chevron'
 
 type Props = {
   images: string[]
   name?: string
-  notes?: string
   initialIndex?: number
   zIndex?: number
   closeOnEsc?: boolean
@@ -13,7 +13,7 @@ type Props = {
   children?: ReactNode
 }
 
-export default function Lightbox({ images, name, notes, initialIndex = 0, zIndex = 200, closeOnEsc = true, onShare, onClose, children }: Props) {
+export default function Lightbox({ images, name, initialIndex = 0, zIndex = 200, closeOnEsc = true, onShare, onClose, children }: Props) {
   const multi = images.length > 1
   const [index, setIndex] = useState(initialIndex)
   const touchStartX = useRef(0)
@@ -46,8 +46,7 @@ export default function Lightbox({ images, name, notes, initialIndex = 0, zIndex
       {onShare && (
         <button
           onClick={e => { e.stopPropagation(); onShare() }}
-          className="absolute top-4 right-4 text-xs text-white/70 hover:text-white transition-colors px-2.5 py-1.5 border border-white/20 rounded"
-          style={{ cursor: 'pointer' }}
+          className="btn absolute top-4 right-4"
         >
           Share
         </button>
@@ -56,11 +55,10 @@ export default function Lightbox({ images, name, notes, initialIndex = 0, zIndex
       <img
         src={images[index]}
         alt={name}
-        className="max-w-full object-contain rounded min-h-0"
+        className="max-w-full object-contain min-h-0"
         style={{ maxHeight: children ? 'calc(100vh - 15rem)' : multi ? 'calc(100vh - 9rem)' : 'calc(100vh - 6rem)' }}
       />
-      {name && <p className="text-white/90 text-sm font-medium">{name}</p>}
-      {notes && <p className="text-white/70 text-sm">{notes}</p>}
+      {name && <p className="text-white/90 text-sm">{name}</p>}
       {children && <div onClick={e => e.stopPropagation()}>{children}</div>}
 
       {multi && (
@@ -79,15 +77,15 @@ export default function Lightbox({ images, name, notes, initialIndex = 0, zIndex
       {multi && (
         <>
           <button
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-            style={{ fontSize: 28 }}
+            aria-label="Previous photo"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
             onClick={e => { e.stopPropagation(); setIndex(i => (i - 1 + images.length) % images.length) }}
-          >‹</button>
+          ><Chevron dir="left" size={22} /></button>
           <button
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-            style={{ fontSize: 28 }}
+            aria-label="Next photo"
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
             onClick={e => { e.stopPropagation(); setIndex(i => (i + 1) % images.length) }}
-          >›</button>
+          ><Chevron dir="right" size={22} /></button>
         </>
       )}
     </div>
