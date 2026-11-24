@@ -34,9 +34,11 @@ export async function writeJson(key: string, value: unknown): Promise<void> {
 // Best-effort tag `orphaned=true` for a tag-filtered lifecycle rule; swallows errors so it never blocks a delete.
 // Only safe for single-referent objects — never for anything another record might still reference.
 export async function tagOrphaned(key: string): Promise<void> {
-  await s3.send(new PutObjectTaggingCommand({
-    Bucket: process.env.S3_BUCKET_NAME,
-    Key: key,
-    Tagging: { TagSet: [{ Key: 'orphaned', Value: 'true' }] },
-  })).catch(() => {})
+  await putOrphanedTag(key).catch(() => {})
 }
+
+export const putOrphanedTag = (key: string) => s3.send(new PutObjectTaggingCommand({
+  Bucket: process.env.S3_BUCKET_NAME,
+  Key: key,
+  Tagging: { TagSet: [{ Key: 'orphaned', Value: 'true' }] },
+}))
