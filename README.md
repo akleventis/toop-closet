@@ -60,34 +60,6 @@ toop-closet/                        ← the bucket
     └── fits-{id}.webp              ·  composed fit images  (public read)
 ```
 
-### Data shapes
-
-```ts
-// inventory/{slug}.json — array of these
-ClothingItem = {
-  id, name, category, notes?          // notes ≤ 50 chars
-  imageUrls: string[]                 // 1–4 photos; read via getImages(item)
-  imageUrl                            // = imageUrls[0], back-compat for old items
-  bgPendingAt?, bgError?, bgRetry?    // server-written bg-removal state
-}
-
-// users/{slug}/config.json
-ClosetConfig = { slug, ownerEmail, categories: string[], name? }   // slug permanent, name editable
-
-// _users/seats.json — owner email → collaborators
-{ "<owner email>": { name?, seats: ["<email>", …] } }
-
-// fits/items/{id}.json · suitcases/items/{id}.json
-FitItem  = { itemId, slug, name, imageUrl }                        // snapshot of an item
-Fit      = { id, name?, imageUrl, items: FitItem[], context?, suitcaseId?, ownerEmail, createdAt }
-Suitcase = { id, name?, items: FitItem[], ownerEmail, createdAt }  // a fit minus the image
-
-// fits/_jobs/{jobId}.json
-FitJob   = { jobId, status: 'pending' | 'done' | 'error', fitId?, items, ownerEmail, startedAt }
-```
-
-`ownerEmail` is server-only, stripped before anything reaches the client.
-
 ### Workspaces & auth
 
 - A **workspace** is an owner email. Every closet, fit and suitcase is stamped with one.
