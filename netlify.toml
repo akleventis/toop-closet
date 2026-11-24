@@ -8,6 +8,10 @@
   # public/ isn't on the function filesystem; bundle it so functions can read its files.
   included_files = ["public/**"]
 
+[functions."sweep-orphans"]
+  # weekly; tags photos nothing references as orphaned=true for the lifecycle rule (dry run unless ORPHAN_SWEEP=live)
+  schedule = "@weekly"
+
 [[headers]]
   for = "/*"
   [headers.values]

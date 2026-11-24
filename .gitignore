@@ -32,7 +32,6 @@ deno.lock
 CLAUDE.md
 .claude
 /docs
-scripts/reap-orphans.mjs
 
 # data never goes in git
 *.csv
