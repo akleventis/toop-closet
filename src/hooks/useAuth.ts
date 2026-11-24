@@ -100,6 +100,7 @@ export function useAuth() {
     workspaces[0] ??
     null
   const userClosets = active?.closets ?? []
+  const navClosets = isOwner ? userClosets : allClosets
   // Slugs the user may edit = closets across every workspace they can act in.
   const editableSlugs = useMemo(
     () => new Set(workspaces.flatMap(w => w.closets.map(c => c.slug))),
@@ -112,7 +113,7 @@ export function useAuth() {
   return {
     user, token, isOwner,
     workspaces, activeWorkspace: active?.ownerEmail ?? null, setActiveWorkspace,
-    userClosets, setWorkspaces, editableSlugs,
+    userClosets, navClosets, setWorkspaces, editableSlugs,
     allClosets, setAllClosets, closetsLoaded, backTo,
     login, logout,
   }

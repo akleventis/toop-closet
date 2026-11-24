@@ -3,8 +3,10 @@ import type { ClothingItem, UserCloset } from '../types'
 import { getImages } from '../types'
 import { fetchConfig } from '../api'
 import Menu from './Menu'
+import ShareButton from './ShareButton'
 import type { MenuItem } from './Menu'
 import Lightbox from './Lightbox'
+import Chevron from './Chevron'
 
 type Props = {
   item: ClothingItem
@@ -59,9 +61,9 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
   const currentImg = images[safeIndex] ?? ''
 
   return (
-    <div className="border border-(--border) rounded-lg flex flex-col">
+    <div className="flex flex-col">
       <div
-        className="w-full aspect-square overflow-hidden relative rounded-t-lg"
+        className="w-full aspect-square overflow-hidden relative card-fill"
         onTouchStart={e => { touchStartX.current = e.touches[0].clientX; didSwipe.current = false }}
         onTouchEnd={e => {
           const delta = touchStartX.current - e.changedTouches[0].clientX
@@ -96,15 +98,15 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         {multi && !isProcessing && (
           <>
             <button
-              className="absolute left-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-              style={{ fontSize: 20 }}
+              aria-label="Previous photo"
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
               onClick={e => { e.stopPropagation(); setImgIndex(i => (i - 1 + images.length) % images.length) }}
-            >‹</button>
+            ><Chevron dir="left" size={14} /></button>
             <button
-              className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-black/40 rounded-full text-white leading-none"
-              style={{ fontSize: 20 }}
+              aria-label="Next photo"
+              className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-(--muted) hover:text-(--text) transition-colors"
               onClick={e => { e.stopPropagation(); setImgIndex(i => (i + 1) % images.length) }}
-            >›</button>
+            ><Chevron dir="right" size={14} /></button>
             <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 pointer-events-none">
               {images.map((_, i) => (
                 <span key={i} className={`w-1.5 h-1.5 rounded-full transition-colors ${i === safeIndex ? 'bg-white' : 'bg-white/40'}`} />
@@ -114,26 +116,14 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         )}
       </div>
 
-      <div className="p-3 flex flex-col gap-1.5 flex-1">
+      <div className="pt-1 px-0.5 flex flex-col gap-0.5 flex-1">
         <div className="flex items-center justify-between gap-1">
           <div className="text-xs truncate">{item.name}</div>
-          {!isProcessing && menuItems.length > 0 && <Menu items={menuItems} />}
+          {!isProcessing && menuItems.length > 0 && <div className="-my-1.5"><Menu items={menuItems} /></div>}
         </div>
         <div className="flex items-center justify-between gap-1">
-          <span className="text-[10px] px-1.5 py-0.5 rounded border border-(--border) text-(--muted)">{item.category}</span>
-          {onShare && (
-            // -my-2 keeps the 32px tap target without making the tag row taller
-            <button
-              aria-label="Share"
-              onClick={e => { e.stopPropagation(); onShare() }}
-              className="w-8 h-8 -my-2 flex items-center justify-center rounded text-(--muted) hover:text-(--text) transition-colors"
-              style={{ touchAction: 'manipulation' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
-              </svg>
-            </button>
-          )}
+          <span className="text-[10px] text-(--muted) truncate">{item.category}</span>
+          {onShare && <ShareButton onShare={onShare} />}
         </div>
         {showTransfer && !target && (
           <div className="flex flex-wrap gap-1.5 mt-1" onClick={e => e.stopPropagation()}>
@@ -151,7 +141,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                   } catch { setTransferError(true) }
                   finally { setLoadingTarget(null) }
                 }}
-                className="px-2 py-0.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) disabled:opacity-40 transition-colors"
+                className="btn px-2 py-0.5"
               >
                 {loadingTarget === c.slug ? '…' : `→ ${c.name ?? c.slug}`}
               </button>
@@ -167,7 +157,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                 value={targetCat}
                 onChange={e => setTargetCat(e.target.value)}
                 disabled={transferring}
-                className="flex-1 min-w-0 px-1.5 py-0.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) disabled:opacity-40"
+                className="field flex-1 min-w-0"
               >
                 {target.categories.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -178,7 +168,7 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
                   try { await onTransfer?.(item, target.slug, targetCat) }
                   finally { setTransferring(false); setShowTransfer(false); setTarget(null) }
                 }}
-                className="px-2 py-0.5 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) disabled:opacity-40 transition-colors shrink-0"
+                className="btn px-2 py-0.5 shrink-0"
               >
                 {transferring ? '…' : 'Move'}
               </button>
@@ -191,7 +181,6 @@ export default function ClothingCard({ item, isOwner, isProcessing, otherClosets
         <Lightbox
           images={images}
           name={item.name}
-          notes={item.notes}
           initialIndex={safeIndex}
           onShare={onShare}
           onClose={() => setLightbox(false)}

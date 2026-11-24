@@ -23,7 +23,7 @@ const ALL = 'All'
 export default function App() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const { user, token, isOwner, userClosets, setWorkspaces, workspaces, activeWorkspace, setActiveWorkspace, editableSlugs, allClosets, setAllClosets, login, logout } = useAuth()
+  const { user, token, isOwner, userClosets, setWorkspaces, workspaces, activeWorkspace, setActiveWorkspace, editableSlugs, navClosets, setAllClosets, login, logout } = useAuth()
   // Logged in = can create closets; editing a specific closet also requires it to
   // belong to a workspace you're a member of (own or seat-of).
   const canEdit = isOwner && !!slug && editableSlugs.has(slug)
@@ -98,8 +98,7 @@ export default function App() {
   }, [items, category, categories, searchQuery])
 
   // a closet outside the nav's list (another workspace's, while logged out) still shows as the active one
-  const baseNav = isOwner ? userClosets : allClosets
-  const navClosets = !slug || baseNav.some(c => c.slug === slug) ? baseNav : [...baseNav, { slug, name: closetName }]
+  const shownClosets = !slug || navClosets.some(c => c.slug === slug) ? navClosets : [...navClosets, { slug, name: closetName }]
 
   if (!slug) return null
 
@@ -224,7 +223,7 @@ export default function App() {
     <div className="min-h-screen">
       <Header
         slug={slug}
-        closets={navClosets}
+        closets={shownClosets}
         user={user}
         onLogin={login}
         onLogout={logout}
@@ -293,14 +292,14 @@ export default function App() {
             <button
               onClick={() => { setConfirmDeleteId(null); setDeleteError(null) }}
               disabled={!!deletingId}
-              className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
+              className="btn"
             >
               Cancel
             </button>
             <button
               onClick={handleConfirmDelete}
               disabled={!!deletingId}
-              className="px-3 py-1 bg-(--danger) text-white rounded text-xs font-medium disabled:opacity-40"
+              className="btn-danger"
             >
               {deletingId ? '…' : 'Delete'}
             </button>
@@ -316,7 +315,7 @@ export default function App() {
               value={renameValue}
               onChange={e => setRenameValue(e.target.value)}
               maxLength={60}
-              className="px-2 py-1.5 border border-(--border) rounded text-xs bg-(--bg) text-(--text) focus:outline-none w-full"
+              className="field"
               disabled={renameLoading}
             />
             {renameClosetError && <p className="text-(--danger) text-xs">{renameClosetError}</p>}
@@ -325,14 +324,14 @@ export default function App() {
                 type="button"
                 onClick={() => { setRenamingCloset(false); setRenameClosetError(null) }}
                 disabled={renameLoading}
-                className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
+                className="btn"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={renameLoading || !renameValue.trim()}
-                className="px-3 py-1 bg-(--text) text-(--bg) rounded text-xs font-medium disabled:opacity-40"
+                className="btn-primary"
               >
                 {renameLoading ? '…' : 'Save'}
               </button>
@@ -349,14 +348,14 @@ export default function App() {
             <button
               onClick={() => { setConfirmingDelete(false); setDeleteClosetError(null) }}
               disabled={deleteClosetLoading}
-              className="px-3 py-1 border border-(--border) rounded text-xs hover:bg-(--bg-subtle) transition-colors disabled:opacity-40"
+              className="btn"
             >
               Cancel
             </button>
             <button
               onClick={handleDeleteCloset}
               disabled={deleteClosetLoading}
-              className="px-3 py-1 bg-(--danger) text-white rounded text-xs font-medium disabled:opacity-40"
+              className="btn-danger"
             >
               {deleteClosetLoading ? '…' : 'Delete'}
             </button>

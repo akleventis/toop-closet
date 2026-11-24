@@ -7,6 +7,8 @@ import { useFitGeneration } from '../contexts/fitGenerationContext'
 import Header from '../components/Header'
 import FitBuilder from '../components/FitBuilder'
 import FitGrid from '../components/FitGrid'
+import SearchInput from '../components/SearchInput'
+import AddButton from '../components/AddButton'
 import Toast from '../components/Toast'
 
 export default function FitsPage() {
@@ -15,6 +17,7 @@ export default function FitsPage() {
   // its outcome) even after you navigate away from /fits. `pending` survives navigation too.
   const { pending, generate, subscribe } = useFitGeneration()
   const { toast, showToast } = useToast()
+  const [searchQuery, setSearchQuery] = useState('')
   const [fits, setFits] = useState<Fit[]>([])
   const [loading, setLoading] = useState(true)
   const [building, setBuilding] = useState(false)
@@ -61,34 +64,31 @@ export default function FitsPage() {
 
   // Suitcase fits live on their suitcase page — an adopted job for one must not render here.
   const standalonePending = pending.filter(p => !p.existingId && !p.suitcaseId)
+  const query = searchQuery.trim().toLowerCase()
+  const shownFits = query ? fits.filter(f => f.name?.toLowerCase().includes(query)) : fits
+  const shownPending = query ? [] : standalonePending
   const regeneratingIds = new Set(pending.filter(p => p.existingId).map(p => p.existingId!))
 
   return (
     <div className="min-h-screen">
-      <Header slug="" closets={allClosets} user={user} onLogin={login} onLogout={logout} backTo={backTo} />
+      <Header slug="" user={user} onLogin={login} onLogout={logout} backTo={backTo} />
 
       <main className="max-w-4xl mx-auto px-4 pb-12">
-        <div className="flex items-center justify-between my-5">
-          <h1 className="text-sm font-semibold text-(--text)">Fits</h1>
+        <div className="flex items-center justify-between gap-1 min-h-8 mb-3">
+          <SearchInput value={searchQuery} onChange={setSearchQuery} />
           {isOwner && (
-            <button
-              onClick={() => setBuilding(true)}
-              title="Create fit"
-              className="text-(--muted) hover:text-(--text) transition-colors leading-none w-7 h-7 flex items-center justify-center text-base shrink-0"
-            >
-              +
-            </button>
+            <AddButton label="Create fit" onClick={() => setBuilding(true)} />
           )}
         </div>
 
         {loading ? (
           <p className="text-(--muted) text-sm text-center mt-16">Loading…</p>
-        ) : fits.length === 0 && standalonePending.length === 0 ? (
-          <p className="text-(--muted) text-sm text-center mt-16">No fits yet.</p>
+        ) : shownFits.length === 0 && shownPending.length === 0 ? (
+          <p className="text-(--muted) text-sm text-center mt-16">{query ? 'No fits match your search.' : 'No fits yet.'}</p>
         ) : (
           <FitGrid
-            fits={fits}
-            pending={standalonePending}
+            fits={shownFits}
+            pending={shownPending}
             regeneratingIds={regeneratingIds}
             isOwner={isOwner}
             openFitId={fitParam ?? undefined}
