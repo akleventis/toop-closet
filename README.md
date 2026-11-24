@@ -1,56 +1,40 @@
-## toop-closet
+# toop-closet
 
-Spring cleaning resulted in a large pile of clothes I don't wear enough, but don't quite want to rid of. I'll be sending them to my parents house for ease of future travels. Built this to keep track of all my clothes — a shareable virtual closet inventory anyone can browse, with owner-only add/edit/delete behind a login.
+A shareable virtual closet. Photograph every piece of clothing you own, tag it, and browse it from anywhere — then let AI dress a model in any combination of it, or pack a trip and style outfits from only what's in the bag.
 
-https://closet.tooper.io 
+Built after spring cleaning left a pile of clothes headed to my parents' house: I wanted to know what's where without digging through boxes.
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/75d60925-1f7e-4bae-86f7-041d961a5455/deploy-status)](https://app.netlify.com/projects/toop-closet/deploys)
+**Live:** https://closet.tooper.io &nbsp; [![Netlify Status](https://api.netlify.com/api/v1/badges/75d60925-1f7e-4bae-86f7-041d961a5455/deploy-status)](https://app.netlify.com/projects/toop-closet/deploys)
 
 https://github.com/user-attachments/assets/3a6b0e31-c757-4b60-a301-f755a87ffec1
 
----
+## Features
 
-### Features
+| Public (no login) | Signed in (invite-only) |
+|---|---|
+| Browse any closet by URL, filter by tag | Add/edit/delete items: name, tag, note, up to 4 photos |
+| Swipeable cards + fullscreen lightbox | Automatic background removal on every photo |
+| Browse AI-generated **fits** and packed **suitcases** | Multiple closets with custom tags; move items between them |
+| One-tap share links with rich previews | Generate **fits** from items across closets |
+| | Pack **suitcases** and generate fits from only what's packed |
+| | **Workspaces**: share yours with collaborators via seats |
 
-**Browsing (public, no login)**
-- Browse any closet via its unique URL
-- Filter items by tag
-- Click any photo to open a full-screen lightbox — keyboard ←/→/Escape, swipe on mobile
-- Up to 4 photos per item, swipeable in both card and lightbox views
-- Notes visible in lightbox
-- Browse "fits" — AI-composed outfits — on the shared `/fits` page
-- Browse "suitcases" — packed trip collections — and the fits made from each
+## Stack
 
-**Managing (owner login required)**
-- Add, edit, and delete items — name, tag, up to 4 photos, short note
-- Reorder photos per item with left/right arrows in the edit form
-- Auto background removal per photo — runs async after save, raw image shows immediately
-- Custom tags: create, rename (batch), delete
-- Multiple closets: create, rename, delete
-- Transfer items between your own closets
-- Build "fits": pick items across closets and generate an image of them worn together on a base subject (you or a mannequin) — regenerate, rename, or edit anytime
-- Pack a "suitcase" for a trip and generate fits from only the items you packed
+| Layer | Tech |
+|---|---|
+| Frontend | React 19, Vite, Tailwind v4 |
+| Backend | Netlify Functions (sync, background, scheduled) + edge function for OG tags |
+| Storage | AWS S3 (JSON records + images) |
+| Auth | Netlify Identity (invite-only JWT) |
+| Background removal | [withoutbg](https://github.com/withoutbg/withoutbg) on a Synology NAS, via Tailscale Funnel |
+| Fit generation | OpenAI `gpt-4o` image generation |
 
----
+## How it works
 
-### Stack
+Each closet has a permanent hex slug (`/a472ae`) that is both its URL and its S3 key. Reads are public; writes need login **and** membership in the owning workspace. Images upload straight from the browser to S3 via a presigned URL and never pass through a function.
 
-| Layer | Tech | Role |
-|---|---|---|
-| **Frontend** | React 19 + Vite + Tailwind v4 | UI, hosted on Netlify |
-| **Backend** | Netlify Functions (Node.js) | serverless API + background jobs |
-| **Storage** | AWS S3 | item inventory + images |
-| **Auth** | Netlify Identity | invite-only JWT auth |
-| **Bg removal** | [withoutbg](https://github.com/withoutbg/withoutbg) on a Synology NAS | self-hosted AI cutouts, exposed via Tailscale Funnel |
-| **Fit generation** | OpenAI `gpt-4o` image generation | composes "fits" onto a base subject |
-
----
-
-### How it works
-
-Each closet gets an auto-generated slug — a short hex hash (e.g. `a472ae`) — that doubles as its URL path (`/a472ae`) and its S3 key prefix. Anyone can browse; managing needs login. Accounts are invite-only, and each person gets their own **workspace** of closets/fits/suitcases — a workspace can grant **seats** to collaborators (I share mine with a friend), and a logged-in user switches between the workspaces they can access.
-
-**S3 layout:**
+### S3 layout
 
 ```
 toop-closet/                        ← the bucket
@@ -76,204 +60,135 @@ toop-closet/                        ← the bucket
     └── fits-{id}.webp              ·  composed fit images  (public read)
 ```
 
-> Each fit is its own object under `fits/items/` rather than rows in one big
-> `index.json` — generating or editing fits only ever touches independent keys,
-> so two creates can't clobber each other. Job files under `fits/_jobs/` are
-> never deleted on read (a second device must still see the outcome) — the
-> browser acks them once it has the result, and a lifecycle rule ages out the rest.
+### Data shapes
 
-**Data shapes:**
-
-`inventory/{slug}.json` — array of items:
-```json
-[
-  {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "name": "White tee",
-    "category": "Tops",
-    "imageUrl": "https://s3…/clothing/a472ae/abc123",
-    "imageUrls": ["https://s3…/clothing/a472ae/abc123", "https://s3…/clothing/a472ae/def456"],
-    "notes": "Cotton, size M"
-  }
-]
-```
-`imageUrl` always mirrors `imageUrls[0]` for backwards compat — old single-image items may only have `imageUrl`. Always read via `getImages(item)`.
-
-`users/{slug}/config.json` — closet metadata:
-```json
-{
-  "slug": "a472ae",
-  "ownerEmail": "owner@example.com",
-  "categories": ["Tops", "Bottoms", "Shoes"],
-  "name": "Denver"
+```ts
+// inventory/{slug}.json — array of these
+ClothingItem = {
+  id, name, category, notes?          // notes ≤ 50 chars
+  imageUrls: string[]                 // 1–4 photos; read via getImages(item)
+  imageUrl                            // = imageUrls[0], back-compat for old items
+  bgPendingAt?, bgError?, bgRetry?    // server-written bg-removal state
 }
-```
-`slug` is permanent (URL + S3 key). `name` is the editable display label.
 
-`_users/seats.json` — workspace registry (owner email → collaborators):
-```json
-{
-  "mail@tooper.io":        { "name": "Tooper", "seats": ["alex.ziemba@gmail.com"] },
-  "alex.ziemba@gmail.com": { "name": "Yeezy",  "seats": ["mail@tooper.io"] }
-}
-```
-A *workspace* is an owner email; `ownerEmail` on every closet/fit/suitcase says which one it belongs to. You can act in your own workspace plus any that lists you in its `seats` (here they're mutual). Missing/empty file ⇒ everyone is an isolated tenant. Edit to invite or rename — no redeploy.
+// users/{slug}/config.json
+ClosetConfig = { slug, ownerEmail, categories: string[], name? }   // slug permanent, name editable
 
-`fits/items/{id}.json` — one composed fit (`ownerEmail` is server-only, stripped before the client sees it):
-```json
-{
-  "id": "9c0361a18a5c",
-  "name": "Touch down Tooper",
-  "imageUrl": "https://s3…/clothing/fits-9c0361a18a5c.webp?v=1720000000000",
-  "items": [
-    { "itemId": "550e8400-…", "slug": "a472ae", "name": "White tee", "imageUrl": "https://s3…/clothing/a472ae/abc123" }
-  ],
-  "context": "smart casual, muted tones",
-  "suitcaseId": "87e4b44b9aad",
-  "ownerEmail": "mail@tooper.io",
-  "createdAt": "2026-06-27T18:20:00.000Z"
-}
-```
-`suitcaseId` is present only for fits generated from a suitcase (siloed to it). `?v=` on `imageUrl` cache-busts after a regenerate.
+// _users/seats.json — owner email → collaborators
+{ "<owner email>": { name?, seats: ["<email>", …] } }
 
-`suitcases/items/{id}.json` — one packed trip (item snapshots, no generated image):
-```json
-{
-  "id": "87e4b44b9aad",
-  "name": "Vegas trip",
-  "items": [
-    { "itemId": "550e8400-…", "slug": "a472ae", "name": "White tee", "imageUrl": "https://s3…/clothing/a472ae/abc123" }
-  ],
-  "ownerEmail": "mail@tooper.io",
-  "createdAt": "2026-06-27T18:00:00.000Z"
-}
+// fits/items/{id}.json · suitcases/items/{id}.json
+FitItem  = { itemId, slug, name, imageUrl }                        // snapshot of an item
+Fit      = { id, name?, imageUrl, items: FitItem[], context?, suitcaseId?, ownerEmail, createdAt }
+Suitcase = { id, name?, items: FitItem[], ownerEmail, createdAt }  // a fit minus the image
+
+// fits/_jobs/{jobId}.json
+FitJob   = { jobId, status: 'pending' | 'done' | 'error', fitId?, items, ownerEmail, startedAt }
 ```
 
-`fits/_jobs/{jobId}.json` — transient generation job, written before generation starts; the fit itself is committed server-side, so a finished job only points at it (`ownerEmail` is stripped before the client sees it):
-```json
-{ "jobId": "…", "status": "done", "fitId": "9c0361a18a5c", "startedAt": "2026-06-27T18:20:00.000Z", "items": [ … ], "ownerEmail": "mail@tooper.io" }
+`ownerEmail` is server-only, stripped before anything reaches the client.
+
+### Workspaces & auth
+
+- A **workspace** is an owner email. Every closet, fit and suitcase is stamped with one.
+- You can act in your own workspace plus any whose `seats` list you; the UI switches between them.
+- Not seated anywhere → isolated tenant. Edit `seats.json` to invite; no redeploy.
+- Lists (`/fits`, `/suitcases`) are workspace-scoped; a single fit or suitcase by id is unscoped, so share links work for anyone.
+
+### Share links
+
+| Link | Opens |
+|---|---|
+| `/{slug}?item={8-char id}` | item lightbox |
+| `/fits?fit={id}` | fit |
+| `/suitcases/{id}?fit={id}` | suitcase fit |
+
+Link-preview bots don't run JS, so an edge function injects `og:` tags (name, image) into the HTML.
+
+## AI fits
+
+Pick items, add an optional styling note, and `gpt-4o` renders them worn together on a base subject (`public/base-subject.webp`). Generation outlasts a normal function's timeout, so it runs in a 15-min background function that **commits the fit itself**. The browser only watches: reload, close the tab, or switch devices and the fit still lands.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant F as create-fit-background
+    participant S as S3
+    B->>F: POST jobId + items + note
+    F-->>B: 202 (instant)
+    F->>S: write fits/_jobs/{jobId} (pending)
+    F->>F: gpt-4o compose → withoutbg (raw if NAS down)
+    F->>S: write fits-{id}.webp + fits/items/{id}.json
+    F->>S: job → done, fitId
+    loop every 2.5s
+        B->>S: GET /fit-status?jobId
+    end
+    B->>S: DELETE job (ack)
 ```
 
-**Auth & workspaces:**
+- Job file is written **first**, so on load the client re-adopts in-flight jobs.
+- Background functions always return 202; every failure is written to the job file or it's invisible.
+- Regenerate overwrites the same image key; `?v=` on `imageUrl` busts caches.
 
-Netlify Identity issues a JWT on login (registration is invite-only). Reads are public; **writes require login + workspace membership.**
+## Suitcases
 
-```
-_users/seats.json ─▶ accessibleWorkspaces(user) = own email + workspaces that seat you
-                          │
-                          ├─ canActOn(user, ownerEmail)    → write gate (else 403)
-                          └─ targetWorkspace(user, active)  → workspace a new item is stamped with
-```
+A named set of items packed from any closet. Its page lists the packed items and the fits made from them, and its fit builder only offers what's packed. Suitcase fits are siloed: hidden from `/fits` and deleted with the suitcase.
 
-- Own workspace + any that seats you → read/write both, and switch between them in the UI.
-- Not in anyone's `seats` → **isolated tenant**: your own closets only.
-- Reads: closets are fully public; `/fits` + `/suitcases` lists are workspace-scoped, but a single fit/suitcase stays reachable by id (share links).
-- Local dev bypasses Identity: set `OWNER_EMAIL` in `.env.local` and the backend returns a fake owner user.
+## Background removal
 
-**Read vs. write lifecycle:**
+Self-hosted [withoutbg](https://github.com/withoutbg/withoutbg) in Docker on a Synology DS1522+ for a consistent look with no manual editing.
 
-```
-GET  /a472ae        →  fetch inventory/{slug}.json (public, direct S3 read via function)
-POST /clothes       →  auth + workspace membership → append to inventory array → write S3
-PUT  /upload-url    →  auth + membership → return presigned PUT URL (300s TTL)
-                         browser uploads directly to S3 — image never passes through a function
-DELETE /clothes     →  auth + membership → filter item from array → write back to S3
+```mermaid
+flowchart LR
+    B[Browser] -->|raw photo| S3[(S3)]
+    B -->|start job| F[remove-bg-background]
+    S3 -->|read source| F
+    F --> T[Tailscale Funnel] --> N[nginx<br/>secret check] --> W[withoutbg<br/>on NAS]
+    W -->|WebP| F -->|patch item| S3
 ```
 
-**Share links:**
-
-Items link by ID prefix: "Copy link" writes `/{slug}?item={first-8-chars}` — on load the app finds the item, opens its lightbox, and strips the param. Fits link by their **full** id: standalone as `/fits?fit={id}`, suitcase fits as `/suitcases/{suitcaseId}?fit={id}`. List views are workspace-scoped, but these by-id lookups are unscoped, so a shared link always resolves — for any viewer, logged in or not.
-
----
-
-### AI fits
-
-Pick items across your closets, add an optional styling note, and the app renders them **worn together on a base subject** — a photo of you or a mannequin (`public/base-subject.webp`). OpenAI's `gpt-4o` image generation is fed the base subject plus each item's image and composes a single outfit. The result is then run through the same background-removal pipeline as item photos for a clean, consistent look, and stored at a fixed `clothing/fits-{id}.webp`.
-
-Generation easily outruns a normal function's 26s timeout, so it runs in a Netlify **background function** (15-min limit). The function **commits the finished fit itself** — the browser never persists the result, it only watches — so you can navigate away, reload, close the tab, or pick up your phone and the work still lands.
-
-```
-┌─ browser ────────────────────────────────────────────────────────────┐
-│  pick items  +  styling note   →   Generate (fire-and-forget)        │
-└──────────────────────────────────────────────────────────────────────┘
-   │ POST + jobId                                           ▲
-   ▼ 202 instant                                            │ poll /fit-status (2.5s)
-┌─ create-fit-background ──────────────────────────────────────────────┐
-│                          Netlify background fn · 15-min limit        │
-│                                                                      │
-│   fits/_jobs/{jobId}.json  { status: 'pending', … }   ◀── written    │
-│                                        │                  FIRST      │
-│   base-subject.webp ─┐                 │                             │
-│                      ├─▶  OpenAI gpt-4o image_generation             │
-│   item image URLs ───┘                 │                             │
-│                                        ▼                             │
-│                         withoutbg on NAS  (bg removed)               │
-│                                        │  falls back to raw if down  │
-│                                        ▼                             │
-│         COMMIT: clothing/fits-{id}.webp + fits/items/{id}.json       │
-│                                        │                             │
-│                                        ▼                             │
-│                    job file → { status: 'done', fitId }              │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-The job file is written **before** generation starts, which is what makes an in-flight fit discoverable at all: on load the client asks `/fit-status` for jobs still running and re-adopts them, so a refresh brings the spinner back instead of losing the job. Since background functions always answer `202` before the handler runs, a returned error never reaches the browser — every failure has to be written into that job file or it disappears silently.
-
-Regenerating overwrites the same `fits-{id}.webp` key, so the image URL carries a `?v=` cache-bust to dodge stale browser caches. The `withoutbg` step is the same pipeline used for individual item photos.
-
----
-
-### Suitcases
-
-Packing for a trip? Make a **suitcase** — a named pile of clothes you "pack" from any closet — then generate fits using *only what's in the bag*. Each suitcase gets its own page listing its packed items and the fits made from them; the fit builder opened from there is restricted to the packed set, so you're styling from what you actually brought.
-
-A suitcase is structurally a fit minus the generated image — packed items are the same `{ itemId, slug, name, imageUrl }` snapshots, stored one-object-per-suitcase under `suitcases/items/` (no shared index, same race-free pattern as fits). Fits generated from a suitcase carry its `suitcaseId` and are **siloed to that suitcase** — they show only on its page, not in the global `/fits` list, and deleting the suitcase deletes them too. The generation flow is otherwise identical to regular fits — just scoped to the packed items.
-
----
-
-### Background removal
-
-Wanted a consistent look without manually editing each photo. Self-hosted **[withoutbg](https://github.com/withoutbg/withoutbg)** in Docker on a Synology DS1522+ NAS.
-
-```
-browser (uploads raw photo to S3, then just kicks off the job)
-  └─▶ remove-bg-background  ←── reads the image back out of S3
-        └─▶ tailscale funnel
-              └─▶ nginx proxy (secret header check)
-                    └─▶ withoutbg container  ←── AI runs here, on my NAS
-                          └─▶ WebP written straight back to the inventory
-```
-
-The browser never holds the image through this — it uploads, starts the job, and can close the tab. Progress lives on the item record (`bgPendingAt`), so any device that loads the closet shows the spinner and picks up the result.
-
-The NAS is reachable at a stable HTTPS hostname via **[Tailscale Funnel](https://tailscale.com/kb/1223/funnel)** — no port forwarding, no static IP. An nginx proxy in front validates a shared secret before anything reaches the model.
-
-Images are resized client-side to ≤1500px / JPEG 0.85 before upload — Netlify has a 6MB function body limit and an iPhone HEIC will breach it.
-
-When bg removal is toggled on, the item saves immediately with the raw image and the removal runs async. If it fails, the raw image stays and a toast is shown.
+- Item saves immediately with the raw photo; removal runs async.
+- Progress lives on the item (`bgPendingAt`), so every device shows the spinner.
+- Failure keeps the raw photo and records unfinished slots; **Retry** in the card menu reruns them without re-upload.
+- Tailscale Funnel gives the NAS a stable HTTPS hostname: no port forwarding, no static IP.
+- Photos are resized client-side to ≤1500px / JPEG 0.85 first (an iPhone HEIC breaks Netlify's 6MB body limit).
 
 <p align="center"><img src="assets/nas.jpeg" width="450" /></p>
 
----
+## Orphan cleanup
+
+Deleting a record never deletes its images inline (fit and suitcase snapshots may still point at them). Strays are tagged `orphaned=true` and reaped by S3 lifecycle rules.
+
+| Mechanism | What it reaps |
+|---|---|
+| Lifecycle `expire-fit-jobs` | everything under `fits/_jobs/` after 1 day |
+| Lifecycle `expire-orphaned-images` | any object tagged `orphaned=true` after 1 day |
+| Tag on delete | a deleted fit's composite (incl. suitcase cascade) |
+| Weekly `sweep-orphans` (scheduled fn) | `clothing/` photos older than 24h that no inventory, fit, suitcase or pending job references |
+
+The sweep aborts with nothing tagged on any read failure, re-reads references right before tagging, and only logs until `ORPHAN_SWEEP=live`.
 
 https://github.com/user-attachments/assets/e52cdc9c-ac42-45f1-858b-7072b894cf0a
 
-### Setup
+## Setup
+
+Requires [mise](https://mise.jdx.dev) and the 1Password CLI.
 
 ```bash
-mise install                          # Node 24 (pinned in mise.toml)
+mise install                          # Node 24
 mise run setup                        # secret-scanning hook + npm ci
-op inject -i .env.tpl -o .env.local   # secrets from 1Password
-mise run dev                          # netlify dev, http://localhost:8888
+op inject -i .env.tpl -o .env.local   # secrets from 1Password (Dev vault, item toop-closet)
+mise run dev                          # http://localhost:8888
 ```
 
-Secrets: 1Password, **Dev** vault, item **`toop-closet`**. Variables are listed in `.env.example`.
+Variables are listed in `.env.example`. Local dev bypasses Identity: `OWNER_EMAIL` becomes a fake signed-in user.
 
-Netlify Identity is bypassed in local dev — set `OWNER_EMAIL` in `.env.local` and the backend returns a fake authenticated user automatically. See `docs/CONFIG.md` for full setup (kept local, not in the public repo).
+| Task | Command |
+|---|---|
+| Build | `mise run build` |
+| Lint + typecheck | `mise run lint` |
 
----
+## Credits
 
-### Credits
-
-- **[withoutbg](https://github.com/withoutbg/withoutbg)** — open-source background removal, single Docker container, no cloud account needed
-- **[Tailscale](https://tailscale.com)** — punched the NAS through to the public internet in two commands
+- [withoutbg](https://github.com/withoutbg/withoutbg): open-source background removal in one Docker container
+- [Tailscale](https://tailscale.com): exposes the NAS to the internet in two commands
