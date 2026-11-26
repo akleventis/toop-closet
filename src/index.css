@@ -2,13 +2,13 @@
 
 :root {
   color-scheme: dark;
-  --bg: #1c1c1e;
-  --bg-subtle: #2c2c2e;
-  --card: #212123;
+  --bg: #161618;
+  --bg-subtle: #262628;
+  --card: #1b1b1d;
   --text: #f2f2f7;
   --muted: #98989d;
   /* Also the plate behind item photos (ClothingCard) — kept light enough to separate black clothing. */
-  --border: #3a3a3c;
+  --border: #333335;
   --danger: #ff6961;
   --success: #30d158;
 }
@@ -63,7 +63,7 @@
 
   /* floating surfaces (menus, modals, toast): dark frosted glass */
   .glass-panel, .sheet, .toast {
-    background-color: rgb(44 44 46 / 0.72);
+    background-color: rgb(38 38 40 / 0.72);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: 1px solid rgb(255 255 255 / 0.1);
